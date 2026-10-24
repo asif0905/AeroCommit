@@ -1,0 +1,10 @@
+{
+  "name": "aerocommit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Weather-aware SAF supply planning prototype",
+  "scripts": {
+    "test": "node test-engine.mjs && node test-fallback.mjs && node test-tradeoff.mjs && node test-units.mjs"
+  }
+}

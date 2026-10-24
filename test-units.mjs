@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {gallons,tonnes,toDisplay,fromDisplay,GALLONS_PER_TONNE,KG_PER_GALLON} from './dist/units.mjs';
+import {demoState,plan} from './dist/engine.mjs';
+const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
+near(KG_PER_GALLON,3.0283294272);near(tonnes(gallons(45)),45);
+for(const key of ['supply','demand','capacity','target','price','freight','jetPrice','fee','ci'])for(const n of [0,1,45,2350])near(fromDisplay(key,toDisplay(key,n)),n);
+const s=demoState(),r=plan(s);near(gallons(r.firm),155*GALLONS_PER_TONNE);
+near(gallons(45)*toDisplay('price',2430),45*2430);
+const energyPerGal=s.lhv*KG_PER_GALLON;near(gallons(45)*(s.baseline-24)*energyPerGal/1e6,45*(s.baseline-24)*s.lhv/1000);
+console.log('Gallons: round trips, fuel cost and lifecycle GHG invariance passed.');
