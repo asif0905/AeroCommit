@@ -3,18 +3,19 @@ import {maximize} from './lp.mjs';
 export function demoState() {
   return {
     date: '2026-10-23', scenario:'mixed', budget:900000, flex:30, tolerance:30, decision:21, review:30, baseline:89, lhv:43,
+    // Supplier hubs are illustrative companies placed at real renewable-fuel terminal regions; airports use FAA reference points.
     suppliers:[
-      {id:'west',name:'Pacific Renewables',location:'West coast hub',supply:170,price:2350,ci:24,x:95,y:125},
-      {id:'gulf',name:'Gulf Biofuels',location:'Gulf coast hub',supply:150,price:2100,ci:32,x:430,y:335},
-      {id:'east',name:'Atlantic Fuels',location:'East coast hub',supply:130,price:2550,ci:18,x:735,y:165}
+      {id:'west',name:'Pacific Renewables',location:'West coast hub',supply:170,price:2350,ci:24,lon:-122.68,lat:45.52,place:'Portland, OR'},
+      {id:'gulf',name:'Gulf Biofuels',location:'Gulf coast hub',supply:150,price:2100,ci:32,lon:-95.27,lat:29.73,place:'Houston, TX'},
+      {id:'east',name:'Atlantic Fuels',location:'East coast hub',supply:130,price:2550,ci:18,lon:-76.58,lat:39.27,place:'Baltimore, MD'}
     ],
     airports:[
-      {id:'SFO',name:'San Francisco',hazard:'Smoke advisory',risk:18,delivery:8,wind:18,demand:80,need:42,x:125,y:185},
-      {id:'LAX',name:'Los Angeles',hazard:'Stable conditions',risk:9,delivery:4,wind:12,demand:65,need:42,x:170,y:270},
-      {id:'ORD',name:'Chicago',hazard:'Strong headwinds',risk:24,delivery:7,wind:38,demand:75,need:42,x:500,y:145},
-      {id:'ATL',name:'Atlanta',hazard:'Thunderstorms',risk:42,delivery:12,wind:32,demand:90,need:42,x:585,y:255},
-      {id:'MIA',name:'Miami',hazard:'Hurricane disruption',risk:65,delivery:20,wind:58,demand:60,need:42,x:630,y:350},
-      {id:'JFK',name:'New York',hazard:'Crosswinds',risk:12,delivery:6,wind:24,demand:70,need:42,x:710,y:110}
+      {id:'SFO',name:'San Francisco',hazard:'Smoke advisory',risk:18,delivery:8,wind:18,demand:80,need:42,lon:-122.379,lat:37.6213},
+      {id:'LAX',name:'Los Angeles',hazard:'Stable conditions',risk:9,delivery:4,wind:12,demand:65,need:42,lon:-118.4085,lat:33.9416},
+      {id:'ORD',name:'Chicago',hazard:'Strong headwinds',risk:24,delivery:7,wind:38,demand:75,need:42,lon:-87.9073,lat:41.9742},
+      {id:'ATL',name:'Atlanta',hazard:'Thunderstorms',risk:42,delivery:12,wind:32,demand:90,need:42,lon:-84.4277,lat:33.6407},
+      {id:'MIA',name:'Miami',hazard:'Hurricane disruption',risk:65,delivery:20,wind:58,demand:60,need:42,lon:-80.2870,lat:25.7959},
+      {id:'JFK',name:'New York',hazard:'Crosswinds',risk:12,delivery:6,wind:24,demand:70,need:42,lon:-73.7781,lat:40.6413}
     ],
     flights:[
       {id:'R101',airline:'Meridian Air (demo)',origin:'SFO',destination:'JFK',target:45,enroute:2,depart:44,duration:6},

@@ -20,7 +20,7 @@ Requires Node.js 18 or later:
 npm test
 ```
 
-No `npm install` is needed. Tests cover allocation constraints, shared supply, delivery timing, LP optimality versus the greedy baseline, planner/trade-off consistency, fallback accounting, cost–GHG optimization, and gallon conversion.
+No `npm install` is needed. Tests cover allocation constraints, shared supply, delivery timing, LP optimality versus the greedy baseline, map projection and airport distances, planner/trade-off consistency, fallback accounting, cost–GHG optimization, and gallon conversion.
 
 ## Workspace sections
 
@@ -43,11 +43,18 @@ The interface uses US gallons and USD/US gallon. GHG results use metric tonnes C
 | `dist/fallback.mjs` | Conventional-fuel what-if comparison |
 | `dist/tradeoff.mjs` | Continuous selected-route cost–GHG optimizer |
 | `dist/units.mjs` | US gallon and fuel-price conversion boundary |
+| `dist/geo.mjs` | Albers equal-area projection, great-circle paths and distances |
+| `dist/basemap.mjs` | Generated contiguous-US land and state-border paths (~21 KB) |
+| `tools/build-basemap.mjs` | Dev-only generator for `basemap.mjs` from US Census boundaries |
 | `dist/style.css`, `dist/theme.css` | Responsive Clarity brand and readable typography |
 | `dist/assets/` | Selected logo and cinematic lake-flight hero |
 | `test-*.mjs` | Model and unit verification |
 
 The landing hero uses a generated photorealistic image with a slow camera-style pan and zoom, pause/play, and reduced-motion support. It is not video footage. Google Fonts supplies Nunito and Nunito Sans, with local system-font fallbacks.
+
+## Map
+
+The Routes map is drawn from real geography with no map service or tiles, so it works offline and on any static host. Airports sit at their FAA reference coordinates; supplier hubs are illustrative companies placed at real renewable-fuel terminal regions (Portland, Houston, Baltimore). The contiguous US is shown in an Albers equal-area projection (standard parallels 29.5°N and 45.5°N), flights follow great-circle paths, and tooltips give great-circle and straight-line distances in km. State boundaries come from US Census Bureau cartographic boundaries via [us-atlas](https://github.com/topojson/us-atlas). To regenerate them, install `us-atlas@3.0.1 topojson-client@3.1.0 topojson-simplify@3.0.3` in any folder and run `node tools/build-basemap.mjs` from it.
 
 ## Model boundaries
 
