@@ -20,7 +20,7 @@ Requires Node.js 18 or later:
 npm test
 ```
 
-No `npm install` is needed. Tests cover allocation constraints, shared supply, delivery timing, fallback accounting, cost–GHG optimization, and gallon conversion.
+No `npm install` is needed. Tests cover allocation constraints, shared supply, delivery timing, LP optimality versus the greedy baseline, map projection and airport distances, planner/trade-off consistency, fallback accounting, cost–GHG optimization, and gallon conversion.
 
 ## Workspace sections
 
@@ -38,21 +38,31 @@ The interface uses US gallons and USD/US gallon. GHG results use metric tonnes C
 | --- | --- |
 | `dist/index.html` | Page structure and accessible section tabs |
 | `dist/app.js` | UI, scenario editing, browser-local persistence and CSV export |
-| `dist/engine.mjs` | Two-pass supply allocation heuristic |
+| `dist/engine.mjs` | Two-stage supply allocation (exact LP by default, greedy baseline) |
+| `dist/lp.mjs` | Dependency-free simplex solver (Bland's rule, row scaling) |
 | `dist/fallback.mjs` | Conventional-fuel what-if comparison |
 | `dist/tradeoff.mjs` | Continuous selected-route cost–GHG optimizer |
 | `dist/units.mjs` | US gallon and fuel-price conversion boundary |
+| `dist/geo.mjs` | Albers equal-area projection, great-circle paths and distances |
+| `dist/basemap.mjs` | Generated contiguous-US land and state-border paths (~21 KB) |
+| `tools/build-basemap.mjs` | Dev-only generator for `basemap.mjs` from US Census boundaries |
 | `dist/style.css`, `dist/theme.css` | Responsive Clarity brand and readable typography |
 | `dist/assets/` | Selected logo and cinematic lake-flight hero |
 | `test-*.mjs` | Model and unit verification |
 
 The landing hero uses a generated photorealistic image with a slow camera-style pan and zoom, pause/play, and reduced-motion support. It is not video footage. Google Fonts supplies Nunito and Nunito Sans, with local system-font fallbacks.
 
+## Map
+
+The Routes map is drawn from real geography with no map service or tiles, so it works offline and on any static host. Airports sit at their FAA reference coordinates; supplier hubs are illustrative companies placed at real renewable-fuel terminal regions (Portland, Houston, Baltimore). The contiguous US is shown in an Albers equal-area projection (standard parallels 29.5°N and 45.5°N), flights follow great-circle paths, and tooltips give great-circle and straight-line distances in km. State boundaries come from US Census Bureau cartographic boundaries via [us-atlas](https://github.com/topojson/us-atlas). To regenerate them, install `us-atlas@3.0.1 topojson-client@3.1.0 topojson-simplify@3.0.3` in any folder and run `node tools/build-basemap.mjs` from it.
+
 ## Model boundaries
 
 All weather, probabilities, supplier offers, airline groups and prices are illustrative. There are no live feeds, supplier reservations or executed orders.
 
-The network planner is a transparent greedy heuristic, not a globally optimal solver. The cost–GHG optimizer is exact only for its simplified selected-route, fixed-supplier-mix model. Conditional holds ring-fence planning budget and supply; they are not supplier-confirmed options.
+The network planner solves an exact linear program in two stages: it maximizes expected firm tCO2e under every shared constraint, then maximizes expected conditional-hold tCO2e from what remains. Each stage is optimal for its objective; the pair is lexicographic (firm first), not a single joint optimum. The original greedy ranking is kept as `planGreedy` and reported as a baseline in the CSV export. The cost–GHG optimizer is exact only for its simplified selected-route, fixed-supplier-mix model. Conditional holds ring-fence planning budget and supply; they are not supplier-confirmed options.
+
+Expected reductions use the same probability everywhere: route operation × SAF arrival (1 − origin delivery failure), so the Overview, Cost & GHG and fallback views agree for a route. SAF that does not arrive is replaced by conventional jet fuel at the jet price. The firm risk threshold applies to combined route disruption only; delivery risk lowers a route's priority through its expected benefit instead.
 
 Lifecycle reductions assume aligned CI boundaries and equal-energy substitution. Weather affects probability/timing of use, not the SAF batch’s CI. A cancellation does not automatically destroy fuel. Retained inventory is not a cash refund, and possible later SAF use is not added to current-route GHG savings. Regulatory eligibility and contract enforcement require external validation.
 

@@ -1,18 +1,21 @@
+import {maximize} from './lp.mjs';
+
 export function demoState() {
   return {
     date: '2026-10-23', scenario:'mixed', budget:900000, flex:30, tolerance:30, decision:21, review:30, baseline:89, lhv:43,
+    // Supplier hubs are illustrative companies placed at real renewable-fuel terminal regions; airports use FAA reference points.
     suppliers:[
-      {id:'west',name:'Pacific Renewables',location:'West coast hub',supply:170,price:2350,ci:24,x:95,y:125},
-      {id:'gulf',name:'Gulf Biofuels',location:'Gulf coast hub',supply:150,price:2100,ci:32,x:430,y:335},
-      {id:'east',name:'Atlantic Fuels',location:'East coast hub',supply:130,price:2550,ci:18,x:735,y:165}
+      {id:'west',name:'Pacific Renewables',location:'West coast hub',supply:170,price:2350,ci:24,lon:-122.68,lat:45.52,place:'Portland, OR'},
+      {id:'gulf',name:'Gulf Biofuels',location:'Gulf coast hub',supply:150,price:2100,ci:32,lon:-95.27,lat:29.73,place:'Houston, TX'},
+      {id:'east',name:'Atlantic Fuels',location:'East coast hub',supply:130,price:2550,ci:18,lon:-76.58,lat:39.27,place:'Baltimore, MD'}
     ],
     airports:[
-      {id:'SFO',name:'San Francisco',hazard:'Smoke advisory',risk:18,delivery:8,wind:18,demand:80,need:42,x:125,y:185},
-      {id:'LAX',name:'Los Angeles',hazard:'Stable conditions',risk:9,delivery:4,wind:12,demand:65,need:42,x:170,y:270},
-      {id:'ORD',name:'Chicago',hazard:'Strong headwinds',risk:24,delivery:7,wind:38,demand:75,need:42,x:500,y:145},
-      {id:'ATL',name:'Atlanta',hazard:'Thunderstorms',risk:42,delivery:12,wind:32,demand:90,need:42,x:585,y:255},
-      {id:'MIA',name:'Miami',hazard:'Hurricane disruption',risk:65,delivery:20,wind:58,demand:60,need:42,x:630,y:350},
-      {id:'JFK',name:'New York',hazard:'Crosswinds',risk:12,delivery:6,wind:24,demand:70,need:42,x:710,y:110}
+      {id:'SFO',name:'San Francisco',hazard:'Smoke advisory',risk:18,delivery:8,wind:18,demand:80,need:42,lon:-122.379,lat:37.6213},
+      {id:'LAX',name:'Los Angeles',hazard:'Stable conditions',risk:9,delivery:4,wind:12,demand:65,need:42,lon:-118.4085,lat:33.9416},
+      {id:'ORD',name:'Chicago',hazard:'Strong headwinds',risk:24,delivery:7,wind:38,demand:75,need:42,lon:-87.9073,lat:41.9742},
+      {id:'ATL',name:'Atlanta',hazard:'Thunderstorms',risk:42,delivery:12,wind:32,demand:90,need:42,lon:-84.4277,lat:33.6407},
+      {id:'MIA',name:'Miami',hazard:'Hurricane disruption',risk:65,delivery:20,wind:58,demand:60,need:42,lon:-80.2870,lat:25.7959},
+      {id:'JFK',name:'New York',hazard:'Crosswinds',risk:12,delivery:6,wind:24,demand:70,need:42,lon:-73.7781,lat:40.6413}
     ],
     flights:[
       {id:'R101',airline:'Meridian Air (demo)',origin:'SFO',destination:'JFK',target:45,enroute:2,depart:44,duration:6},
@@ -48,9 +51,12 @@ export function applyScenario(state, scenario) {
   return state;
 }
 
-// Divisible-tonnage, two-pass greedy recommendation. Not a globally optimal solver.
+// Divisible-tonnage, two-stage recommendation. The default solver is an exact linear program:
+// stage 1 maximizes expected firm tCO2e under every shared constraint; stage 2 maximizes expected
+// conditional-hold tCO2e from what remains. method:'greedy' keeps the original ranking heuristic.
 // Holds reserve planning capacity and full purchase budget, not actual supplier options.
-export function plan(s) {
+export function planGreedy(s){return plan(s,{method:'greedy'});}
+export function plan(s,{method='lp'}={}) {
   const supply=Object.fromEntries(s.suppliers.map(v=>[v.id,v.supply]));
   const demand=Object.fromEntries(s.airports.map(v=>[v.id,v.demand]));
   const totalSupply=Object.values(supply).reduce((a,b)=>a+b,0);
@@ -60,7 +66,7 @@ export function plan(s) {
   const flightRows=s.flights.map(f=>{
     const origin=byId[f.origin],destination=byId[f.destination];
     const operationProbability=(1-origin.risk/100)*(1-destination.risk/100)*(1-f.enroute/100);
-    return {...f,...empty(),originRisk:origin.risk,destinationRisk:destination.risk,routeRisk:100*(1-operationProbability),probability:operationProbability*(1-origin.delivery/100),originHazard:origin.hazard,destinationHazard:destination.hazard,remaining:f.target};
+    return {...f,...empty(),originRisk:origin.risk,destinationRisk:destination.risk,routeRisk:100*(1-operationProbability),deliveryRisk:origin.delivery,probability:operationProbability*(1-origin.delivery/100),originHazard:origin.hazard,destinationHazard:destination.hazard,remaining:f.target};
   });
   let budget=s.budget,firmLimit=totalSupply*(1-s.flex/100),firmTotal=0;
   const lanes=s.lanes.map((l,i)=>{
@@ -79,8 +85,30 @@ export function plan(s) {
     for(const row of [byId[f.origin],f]){row[kind]+=q;row.allocations.push(allocation);if(kind==='firm'){row.cost+=q*l.price;row.benefit+=q*l.saving;row.expected+=q*l.saving*f.probability;}else row.holdCost+=q*l.price;}
     if(kind==='firm')firmTotal+=q;
   }
-  for(const c of candidates)if(c.deadline>=s.decision&&c.f.routeRisk<=s.tolerance&&c.l.saving>0)allocate(c,'firm',firmLimit-firmTotal);
-  for(const c of candidates)if(c.deadline>=Math.max(s.review,s.decision)&&c.l.saving>0&&c.f.probability>0)allocate(c,'hold');
+  const firmEligible=c=>c.deadline>=s.decision&&c.f.routeRisk<=s.tolerance&&c.l.saving>0;
+  const holdEligible=c=>c.deadline>=Math.max(s.review,s.decision)&&c.l.saving>0&&c.f.probability>0;
+  // Solve one stage exactly against the resources still available, then book it in rank order.
+  function solveStage(kind,eligible,cap){
+    const vars=candidates.filter(eligible);
+    if(!vars.length||budget<=0)return;
+    const A=[],b=[],group=(key,limit)=>{const keys=[...new Set(vars.map(key))];for(const k of keys){A.push(vars.map(c=>key(c)===k?1:0));b.push(Math.max(0,limit(k)));}};
+    group(c=>c.l.supplier,k=>supply[k]);
+    group(c=>c.f.origin,k=>demand[k]);
+    group(c=>c.f.id,k=>vars.find(c=>c.f.id===k).f.remaining);
+    group(c=>c.l.index,k=>lanes[k].remaining);
+    A.push(vars.map(c=>c.l.price));b.push(Math.max(0,budget));
+    if(Number.isFinite(cap)){A.push(vars.map(()=>1));b.push(Math.max(0,cap));}
+    // Expected lifecycle tCO2e; a negligible price term breaks ties toward cheaper supply.
+    const {x}=maximize(vars.map(c=>c.l.saving*c.f.probability-1e-9*c.l.price),A,b);
+    vars.forEach((c,j)=>{if(x[j]>1e-9)allocate(c,kind,x[j]);});
+  }
+  if(method==='greedy'){
+    for(const c of candidates)if(firmEligible(c))allocate(c,'firm',firmLimit-firmTotal);
+    for(const c of candidates)if(holdEligible(c))allocate(c,'hold');
+  }else{
+    solveStage('firm',firmEligible,firmLimit);
+    solveStage('hold',holdEligible,Infinity);
+  }
   function status(r){return r.firm>0?(r.hold>0?'Split plan':'Commit'):(r.hold>0?'Keep flexible':'Unallocated');}
   for(const f of flightRows){
     f.unfilled=Math.max(0,f.target-f.firm-f.hold);f.status=status(f);f.reasons=[];
@@ -100,7 +128,8 @@ export function plan(s) {
     row.unfilled=fs.reduce((a,f)=>a+f.unfilled,0);row.status=status(row);row.reasons=[`Supply at ${row.id} supports ${fs.length} outbound route group(s). Each destination is assessed separately.`,...fs.map(f=>`${f.origin} → ${f.destination}: ${f.status}; ${f.routeRisk.toFixed(1)}% route risk; ${f.firm.toFixed(1)} t firm / ${f.hold.toFixed(1)} t conditional.`)];
   }
   const sum=k=>rows.reduce((a,b)=>a+b[k],0);
-  return {rows,flightRows,lanes,firm:sum('firm'),hold:sum('hold'),unallocated:Object.values(supply).reduce((a,b)=>a+b,0),unfilled:sum('unfilled'),cost:sum('cost'),holdCost:sum('holdCost'),benefit:sum('benefit'),expected:sum('expected'),remainingBudget:Math.max(0,budget),totalSupply,supply};
+  const baseline=method==='greedy'?null:plan(s,{method:'greedy'});
+  return {solver:method,greedyExpected:baseline?baseline.expected:sum('expected'),rows,flightRows,lanes,firm:sum('firm'),hold:sum('hold'),unallocated:Object.values(supply).reduce((a,b)=>a+b,0),unfilled:sum('unfilled'),cost:sum('cost'),holdCost:sum('holdCost'),benefit:sum('benefit'),expected:sum('expected'),remainingBudget:Math.max(0,budget),totalSupply,supply};
 }
 export function formatHour(n){
   const day=Math.floor(n/24),minute=Math.round(((n%24)+24)%24*60),hour=Math.floor(minute/60)%24;

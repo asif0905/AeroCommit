@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {demoState,applyScenario,plan} from './dist/engine.mjs';
+import {demoState,applyScenario,plan,planGreedy} from './dist/engine.mjs';
 function check(s){const p=plan(s),eps=1e-6;
  assert(p.firm+p.hold<=p.totalSupply+eps,'supply conservation');
  assert(p.cost+p.holdCost<=s.budget+eps,'budget conservation');
@@ -27,5 +27,20 @@ s=demoState();s.flights=s.flights.slice(1,2);s.airports.forEach(a=>a.risk=0);s.f
 let seed=20261023;function rng(){seed=(1664525*seed+1013904223)>>>0;return seed/2**32;}
 for(let i=0;i<400;i++){s=demoState();s.budget=rng()*1500000;s.flex=rng()*100;s.tolerance=rng()*100;s.review=24+rng()*12;s.suppliers.forEach(v=>{v.supply=rng()*300;v.ci=rng()*110;v.price=1000+rng()*4000});s.airports.forEach(a=>{a.risk=rng()*100;a.delivery=rng()*100;a.demand=rng()*150;a.need=24+rng()*23});s.lanes.forEach(l=>{l.lead=rng()*40;l.capacity=rng()*100});s.flights.forEach(f=>{f.enroute=rng()*100;f.target=rng()*100;f.depart=24+rng()*23});check(s);}
 for(const scenario of ['clear','storm','tight'])check(applyScenario(demoState(),scenario));
+// Exact LP vs greedy: a hand-built case where greedy strands the better supplier.
+s={...demoState(),budget:1e7,flex:0,tolerance:100,decision:21,review:30,baseline:89,lhv:43,
+ suppliers:[{id:'A',name:'A',supply:10,price:1000,ci:0},{id:'B',name:'B',supply:10,price:1000,ci:40}],
+ airports:['X','Y','Z'].map(id=>({id,name:id,hazard:'',risk:0,delivery:0,wind:0,demand:100,need:42})),
+ flights:[{id:'F1',airline:'t',origin:'X',destination:'Z',target:10,enroute:0,depart:44,duration:2},{id:'F2',airline:'t',origin:'Y',destination:'Z',target:10,enroute:0,depart:44,duration:2}],
+ lanes:[{supplier:'A',airport:'X',lead:1,freight:0,capacity:100},{supplier:'A',airport:'Y',lead:1,freight:0,capacity:100},{supplier:'B',airport:'X',lead:1,freight:0,capacity:100}]};
+const exact=check(s),greedy=planGreedy(s);
+assert(Math.abs(greedy.expected-10*3.827)<1e-6,'greedy fills X from A and strands Y');
+assert(Math.abs(exact.expected-(10*3.827+10*2.107))<1e-6,'LP routes A to Y and B to X');
+assert.equal(exact.solver,'lp');assert(Math.abs(exact.greedyExpected-greedy.expected)<1e-9);
+// LP firm stage is never worse than greedy, and both respect every constraint.
+seed=777;let wins=0,gain=0;
+for(let i=0;i<300;i++){s=demoState();s.budget=rng()*1500000;s.flex=rng()*60;s.tolerance=rng()*100;s.review=24+rng()*12;s.suppliers.forEach(v=>{v.supply=rng()*300;v.ci=rng()*80;v.price=1000+rng()*4000});s.airports.forEach(a=>{a.risk=rng()*60;a.delivery=rng()*40;a.demand=rng()*150;a.need=30+rng()*17});s.lanes.forEach(l=>{l.lead=rng()*20;l.capacity=rng()*100});s.flights.forEach(f=>{f.enroute=rng()*30;f.target=rng()*100;f.depart=32+rng()*15});
+ const lp=check(s),gr=planGreedy(s);check(s);assert(lp.expected>=gr.expected-1e-6,`LP below greedy on case ${i}`);if(lp.expected>gr.expected+1e-6){wins++;gain+=(lp.expected-gr.expected)/Math.max(gr.expected,1e-9);}}
 console.log('PASS: route isolation, origin-only supply, shared capacities, timing, conservation, unit conversion, edge cases, 3 scenarios, 400 seeded constraint checks.');
+console.log(`PASS LP: beats greedy on the stranded-supplier case; >= greedy in 300 random networks (strictly better in ${wins}, mean gain there ${(100*gain/Math.max(wins,1)).toFixed(1)}%).`);
 console.log(JSON.stringify({firm:p.firm,hold:p.hold,routes:p.flightRows.map(f=>({route:f.origin+'-'+f.destination,firm:f.firm,hold:f.hold,risk:f.routeRisk}))},null,2));
