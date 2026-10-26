@@ -24,3 +24,11 @@ assert.ok(Math.max(...gc.map(p => p[1])) > 40.6413, 'SFO-JFK great circle bows n
 // Basemap is present and compact.
 for (const d of [LAND, BORDERS, GRATICULE]) assert.ok(/^M[\d.]+,[\d.]+/.test(d) && d.length < 30000);
 console.log('Geography: coordinates, projection bounds, orientation, great-circle paths and 4 airport-pair distances passed.');
+
+const {fitNetwork}=await import('./dist/geo.mjs');
+const {safAirports}=await import('./dist/airports.mjs');
+const combined=[...s.airports,safAirports.find(a=>a.id==='AMS'),safAirports.find(a=>a.id==='IST')];
+const net=fitNetwork(combined);assert.equal(net.extended,true);
+for(const p of combined){const [x,y]=net.project(p.lon,p.lat);assert.ok(Number.isFinite(x)&&x>=40&&x<=790&&y>=30&&y<=360);}
+assert.equal(fitNetwork(s.airports).extended,false);
+console.log('Expanded US–Europe map: all airport positions fit, domestic basemap preserved.');

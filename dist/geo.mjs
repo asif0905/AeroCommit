@@ -44,3 +44,22 @@ export function distanceKm([lon1, lat1], [lon2, lat2]) {
   const h = Math.sin((lat2 - lat1) * RAD / 2) ** 2 + Math.cos(lat1 * RAD) * Math.cos(lat2 * RAD) * Math.sin((lon2 - lon1) * RAD / 2) ** 2;
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
+
+// Keep the detailed US basemap for domestic scenarios; fit geographically positioned
+// airports outside that region into a coordinate overview without inventing land outlines.
+export function fitNetwork(points){
+ const extended=points.some(p=>p.lon < -125||p.lon > -66||p.lat < 24||p.lat > 50);
+ if(!extended)return {extended:false,project,graticule:''};
+ const lat0=points.reduce((s,p)=>s+p.lat,0)/points.length,cos=Math.cos(lat0*RAD);
+ const raw=(lon,lat)=>[lon*cos,-lat];
+ const coords=points.map(p=>raw(p.lon,p.lat));
+ const x0=Math.min(...coords.map(p=>p[0])),x1=Math.max(...coords.map(p=>p[0]));
+ const y0=Math.min(...coords.map(p=>p[1])),y1=Math.max(...coords.map(p=>p[1]));
+ const k=Math.min(710/Math.max(1,x1-x0),290/Math.max(1,y1-y0));
+ const fitted=(lon,lat)=>{const [x,y]=raw(lon,lat);return [405+k*(x-(x0+x1)/2),195+k*(y-(y0+y1)/2)];};
+ const path=(a,b)=>{const p=fitted(...a),q=fitted(...b);return `M${p[0]},${p[1]}L${q[0]},${q[1]}`;};
+ let graticule='';
+ for(let lon=-180;lon<=180;lon+=20)graticule+=path([lon,15],[lon,75]);
+ for(let lat=20;lat<=70;lat+=10)graticule+=path([-180,lat],[180,lat]);
+ return {extended:true,project:fitted,graticule};
+}

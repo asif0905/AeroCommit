@@ -43,9 +43,9 @@ export function demoState() {
 
 export function applyScenario(state, scenario) {
   const base=demoState(); state.scenario=scenario;
-  state.airports.forEach((a,i)=>{Object.assign(a,{risk:base.airports[i].risk,delivery:base.airports[i].delivery,wind:base.airports[i].wind,hazard:base.airports[i].hazard})});
+  state.airports.forEach(a=>{const b=base.airports.find(b=>b.id===a.id);if(b)Object.assign(a,{risk:b.risk,delivery:b.delivery,wind:b.wind,hazard:b.hazard});});
   state.suppliers.forEach((s,i)=>s.supply=base.suppliers[i].supply);
-  if(scenario==='clear')state.airports.forEach(a=>Object.assign(a,{risk:6,delivery:3,wind:10,hazard:'Stable conditions'}));
+  if(scenario==='clear')state.airports.filter(a=>base.airports.some(b=>b.id===a.id)).forEach(a=>Object.assign(a,{risk:6,delivery:3,wind:10,hazard:'Stable conditions'}));
   if(scenario==='storm')state.airports.forEach(a=>{if(['ATL','MIA','JFK'].includes(a.id)){a.risk=Math.min(90,a.risk+25);a.delivery+=10;a.wind+=18;a.hazard='Storm escalation'}});
   if(scenario==='tight'){state.suppliers.forEach(s=>s.supply=Math.round(s.supply*.55));}
   return state;
@@ -89,7 +89,7 @@ export function plan(s,{method='lp'}={}) {
   const holdEligible=c=>c.deadline>=Math.max(s.review,s.decision)&&c.l.saving>0&&c.f.probability>0;
   // Solve one stage exactly against the resources still available, then book it in rank order.
   function solveStage(kind,eligible,cap){
-    const vars=candidates.filter(eligible);
+    const vars=candidates.filter(c=>eligible(c)&&c.l.remaining>1e-8&&supply[c.l.supplier]>1e-8&&demand[c.f.origin]>1e-8&&c.f.remaining>1e-8);
     if(!vars.length||budget<=0)return;
     const A=[],b=[],group=(key,limit)=>{const keys=[...new Set(vars.map(key))];for(const k of keys){A.push(vars.map(c=>key(c)===k?1:0));b.push(Math.max(0,limit(k)));}};
     group(c=>c.l.supplier,k=>supply[k]);
@@ -98,8 +98,10 @@ export function plan(s,{method='lp'}={}) {
     group(c=>c.l.index,k=>lanes[k].remaining);
     A.push(vars.map(c=>c.l.price));b.push(Math.max(0,budget));
     if(Number.isFinite(cap)){A.push(vars.map(()=>1));b.push(Math.max(0,cap));}
-    // Expected lifecycle tCO2e; a negligible price term breaks ties toward cheaper supply.
-    const {x}=maximize(vars.map(c=>c.l.saving*c.f.probability-1e-9*c.l.price),A,b);
+    // Maximize expected lifecycle tCO2e without a price penalty changing the objective.
+    const solved=maximize(vars.map(c=>c.l.saving*c.f.probability),A,b);
+    if(solved.status!=='optimal')throw new Error('Allocation solver did not find a bounded optimum');
+    const {x}=solved;
     vars.forEach((c,j)=>{if(x[j]>1e-9)allocate(c,kind,x[j]);});
   }
   if(method==='greedy'){

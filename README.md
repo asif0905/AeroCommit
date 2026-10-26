@@ -28,6 +28,7 @@ No `npm install` is needed. Tests cover allocation constraints, shared supply, d
 - **Routes:** origin/destination selection, disruption assumptions, recommendations, network map and route editor.
 - **Cost & GHG:** budget, reduction-target and internal-carbon-value optimization, plus conventional-fuel fallback.
 - **Supply & Constraints:** supplier offers, inventory, delivery lanes, airport limits and planning controls.
+- **SAF Airports:** searchable 183-airport US/Europe evidence directory, CSV and scenario imports.
 - **Methodology:** probability model, lifecycle comparison and assumptions.
 
 The interface uses US gallons and USD/US gallon. GHG results use metric tonnes CO2e. Volume conversion uses a screening density of 0.80 kg/L for both fuels (3.0283294272 kg/US gallon). Production use requires actual batch density and reference conditions.
@@ -72,4 +73,6 @@ Scenario saves are browser-local. CSV export includes the scenario assumptions a
 
 Deploy the contents of `dist/` to a static host. No backend, secrets or database are required. This repository does not include the private Sites project identity or source-access credentials.
 
-Source snapshot: `0076bb33ecda8af3cc6487a4c4e8364bfc466466` (the cinematic AeroCommit prototype).
+Airport directory snapshot: 24 October 2026. Coverage is not exhaustive or live inventory. See `docs/saf-airport-directory.md`. Imported airports start with no delivery capacity and unconfigured risks; demo weather presets do not overwrite those risks.
+
+When a scenario includes airports outside the contiguous US, the map fits all airport coordinates into an overview without country outlines. Domestic scenarios retain the detailed Albers US basemap.
