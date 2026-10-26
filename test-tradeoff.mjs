@@ -28,4 +28,11 @@ for(let i=0;i<180;i++){
  const candidates=Array.from({length:1001},(_,j)=>{const x=j/10;return{x,c:p*(x*(f.stage==='owned'?0:r.allocations[0].price)+(100-x)*f.jetPrice)+(100-x)*f.fee,g:p*x*benefit,e:p*100*s.baseline*s.lhv/1000-p*x*benefit}}).filter(v=>mode==='budget'?v.c<=o.budget+1e-7:mode==='target'?v.g>=o.target-1e-7:true);
  if(candidates.length){assert.ok(out.feasible);const a=out.recommendation;assert.ok(a.saf>=0&&a.saf<=100);if(mode==='budget'){assert.ok(a.cash<=o.budget+1e-6);assert.ok(a.reduction>=Math.max(...candidates.map(v=>v.g))-1e-6);}else if(mode==='target'){assert.ok(a.reduction>=o.target-1e-6);assert.ok(a.cash<=Math.min(...candidates.map(v=>v.c))+1e-6);}else assert.ok(a.cash+o.carbonPrice*a.emissions<=Math.min(...candidates.map(v=>v.c+o.carbonPrice*v.e))+1e-6);}
 }
-console.log('Trade-off optimizer: analytic cases, blocking, owned inventory and 180 independent grid comparisons passed.');
+// Delivery risk scales the SAF premium and reduction for unpurchased fuel, matching the planner.
+const dr={...route,deliveryRisk:10},td=optimizeTradeoff(s,dr,fuel,{mode:'value',carbonPrice:0});
+near(td.d,0.9);near(td.unitReduction,0.8*0.9*2.795);near(td.unitCash,0.8*0.9*(2400-800));near(td.allSaf.reduction,100*0.8*0.9*2.795);
+near(optimizeTradeoff(s,dr,{...fuel,stage:'owned'}).d,1);
+// Planner and trade-off report the same expected reduction for a route's firm tranche.
+const {demoState,plan}=await import('./dist/engine.mjs');const ds=demoState(),dp=plan(ds);
+for(const f of dp.flightRows){const firm=f.allocations.filter(a=>a.kind==='firm');if(!firm.length)continue;near(optimizeTradeoff(ds,{...f,allocations:firm},fuel).allSaf.reduction,f.expected);}
+console.log('Trade-off optimizer: delivery-risk consistency with planner, analytic cases, blocking, owned inventory and 180 independent grid comparisons passed.');

@@ -1,3 +1,5 @@
+import {maximize} from './lp.mjs';
+
 export function demoState() {
   return {
     date: '2026-10-23', scenario:'mixed', budget:900000, flex:30, tolerance:30, decision:21, review:30, baseline:89, lhv:43,
@@ -48,9 +50,12 @@ export function applyScenario(state, scenario) {
   return state;
 }
 
-// Divisible-tonnage, two-pass greedy recommendation. Not a globally optimal solver.
+// Divisible-tonnage, two-stage recommendation. The default solver is an exact linear program:
+// stage 1 maximizes expected firm tCO2e under every shared constraint; stage 2 maximizes expected
+// conditional-hold tCO2e from what remains. method:'greedy' keeps the original ranking heuristic.
 // Holds reserve planning capacity and full purchase budget, not actual supplier options.
-export function plan(s) {
+export function planGreedy(s){return plan(s,{method:'greedy'});}
+export function plan(s,{method='lp'}={}) {
   const supply=Object.fromEntries(s.suppliers.map(v=>[v.id,v.supply]));
   const demand=Object.fromEntries(s.airports.map(v=>[v.id,v.demand]));
   const totalSupply=Object.values(supply).reduce((a,b)=>a+b,0);
@@ -60,7 +65,7 @@ export function plan(s) {
   const flightRows=s.flights.map(f=>{
     const origin=byId[f.origin],destination=byId[f.destination];
     const operationProbability=(1-origin.risk/100)*(1-destination.risk/100)*(1-f.enroute/100);
-    return {...f,...empty(),originRisk:origin.risk,destinationRisk:destination.risk,routeRisk:100*(1-operationProbability),probability:operationProbability*(1-origin.delivery/100),originHazard:origin.hazard,destinationHazard:destination.hazard,remaining:f.target};
+    return {...f,...empty(),originRisk:origin.risk,destinationRisk:destination.risk,routeRisk:100*(1-operationProbability),deliveryRisk:origin.delivery,probability:operationProbability*(1-origin.delivery/100),originHazard:origin.hazard,destinationHazard:destination.hazard,remaining:f.target};
   });
   let budget=s.budget,firmLimit=totalSupply*(1-s.flex/100),firmTotal=0;
   const lanes=s.lanes.map((l,i)=>{
@@ -79,8 +84,30 @@ export function plan(s) {
     for(const row of [byId[f.origin],f]){row[kind]+=q;row.allocations.push(allocation);if(kind==='firm'){row.cost+=q*l.price;row.benefit+=q*l.saving;row.expected+=q*l.saving*f.probability;}else row.holdCost+=q*l.price;}
     if(kind==='firm')firmTotal+=q;
   }
-  for(const c of candidates)if(c.deadline>=s.decision&&c.f.routeRisk<=s.tolerance&&c.l.saving>0)allocate(c,'firm',firmLimit-firmTotal);
-  for(const c of candidates)if(c.deadline>=Math.max(s.review,s.decision)&&c.l.saving>0&&c.f.probability>0)allocate(c,'hold');
+  const firmEligible=c=>c.deadline>=s.decision&&c.f.routeRisk<=s.tolerance&&c.l.saving>0;
+  const holdEligible=c=>c.deadline>=Math.max(s.review,s.decision)&&c.l.saving>0&&c.f.probability>0;
+  // Solve one stage exactly against the resources still available, then book it in rank order.
+  function solveStage(kind,eligible,cap){
+    const vars=candidates.filter(eligible);
+    if(!vars.length||budget<=0)return;
+    const A=[],b=[],group=(key,limit)=>{const keys=[...new Set(vars.map(key))];for(const k of keys){A.push(vars.map(c=>key(c)===k?1:0));b.push(Math.max(0,limit(k)));}};
+    group(c=>c.l.supplier,k=>supply[k]);
+    group(c=>c.f.origin,k=>demand[k]);
+    group(c=>c.f.id,k=>vars.find(c=>c.f.id===k).f.remaining);
+    group(c=>c.l.index,k=>lanes[k].remaining);
+    A.push(vars.map(c=>c.l.price));b.push(Math.max(0,budget));
+    if(Number.isFinite(cap)){A.push(vars.map(()=>1));b.push(Math.max(0,cap));}
+    // Expected lifecycle tCO2e; a negligible price term breaks ties toward cheaper supply.
+    const {x}=maximize(vars.map(c=>c.l.saving*c.f.probability-1e-9*c.l.price),A,b);
+    vars.forEach((c,j)=>{if(x[j]>1e-9)allocate(c,kind,x[j]);});
+  }
+  if(method==='greedy'){
+    for(const c of candidates)if(firmEligible(c))allocate(c,'firm',firmLimit-firmTotal);
+    for(const c of candidates)if(holdEligible(c))allocate(c,'hold');
+  }else{
+    solveStage('firm',firmEligible,firmLimit);
+    solveStage('hold',holdEligible,Infinity);
+  }
   function status(r){return r.firm>0?(r.hold>0?'Split plan':'Commit'):(r.hold>0?'Keep flexible':'Unallocated');}
   for(const f of flightRows){
     f.unfilled=Math.max(0,f.target-f.firm-f.hold);f.status=status(f);f.reasons=[];
@@ -100,7 +127,8 @@ export function plan(s) {
     row.unfilled=fs.reduce((a,f)=>a+f.unfilled,0);row.status=status(row);row.reasons=[`Supply at ${row.id} supports ${fs.length} outbound route group(s). Each destination is assessed separately.`,...fs.map(f=>`${f.origin} → ${f.destination}: ${f.status}; ${f.routeRisk.toFixed(1)}% route risk; ${f.firm.toFixed(1)} t firm / ${f.hold.toFixed(1)} t conditional.`)];
   }
   const sum=k=>rows.reduce((a,b)=>a+b[k],0);
-  return {rows,flightRows,lanes,firm:sum('firm'),hold:sum('hold'),unallocated:Object.values(supply).reduce((a,b)=>a+b,0),unfilled:sum('unfilled'),cost:sum('cost'),holdCost:sum('holdCost'),benefit:sum('benefit'),expected:sum('expected'),remainingBudget:Math.max(0,budget),totalSupply,supply};
+  const baseline=method==='greedy'?null:plan(s,{method:'greedy'});
+  return {solver:method,greedyExpected:baseline?baseline.expected:sum('expected'),rows,flightRows,lanes,firm:sum('firm'),hold:sum('hold'),unallocated:Object.values(supply).reduce((a,b)=>a+b,0),unfilled:sum('unfilled'),cost:sum('cost'),holdCost:sum('holdCost'),benefit:sum('benefit'),expected:sum('expected'),remainingBudget:Math.max(0,budget),totalSupply,supply};
 }
 export function formatHour(n){
   const day=Math.floor(n/24),minute=Math.round(((n%24)+24)%24*60),hour=Math.floor(minute/60)%24;

@@ -1,6 +1,10 @@
 // Exact continuous one-variable optimizer for a fixed route allocation mix.
 // Cash horizon: tomorrow; SAF already owned is a sunk purchase, not a refund.
 export const tradeoffDefaults=()=>({mode:'budget',budget:60000,target:50,carbonPrice:250});
+// Probability that planned (not yet owned) SAF reaches the aircraft. Matches the planner's
+// P(planned uptake) = route operation × (1 − origin delivery failure). Owned SAF is already in hand.
+// If SAF does not arrive, the flight uplifts conventional jet fuel at the jet price instead.
+export function safArrival(route,stage){return stage==='owned'||route?.deliveryRisk==null?1:Math.max(0,Math.min(1,1-route.deliveryRisk/100));}
 export function optimizeTradeoff(state,route,fuel,settings={}) {
  const o={...tradeoffDefaults(),...settings}, allocations=route?.allocations||[];
  const q=allocations.reduce((s,a)=>s+a.quantity,0);
@@ -9,8 +13,9 @@ export function optimizeTradeoff(state,route,fuel,settings={}) {
  const safPrice=allocations.reduce((s,a)=>s+a.quantity*a.price,0)/q;
  const saving=allocations.reduce((s,a)=>s+a.quantity*a.saving,0)/q;
  const jetFactor=state.baseline*state.lhv/1000;
- const unitCash=p*((fuel.stage==='owned'?0:safPrice)-fuel.jetPrice)-fuel.fee;
- const baseCash=q*(p*fuel.jetPrice+fuel.fee), unitReduction=p*saving;
+ const d=safArrival(route,fuel.stage);
+ const unitCash=p*d*((fuel.stage==='owned'?0:safPrice)-fuel.jetPrice)-fuel.fee;
+ const baseCash=q*(p*fuel.jetPrice+fuel.fee), unitReduction=p*d*saving;
  const evaluate=x=>({saf:x,jet:q-x,share:100*x/q,cash:baseCash+x*unitCash,emissions:p*q*jetFactor-x*unitReduction,reduction:x*unitReduction});
  const allJet=evaluate(0),allSaf=evaluate(q);
  let lo=fuel.locked?q:0,hi=q,reason='';
@@ -21,5 +26,5 @@ export function optimizeTradeoff(state,route,fuel,settings={}) {
  if(lo>hi+1e-7)reason=o.mode==='budget'?'Budget is below the minimum feasible expected cash spend.':'GHG target exceeds the reduction available from this tranche.';
  let recommendation=null;
  if(!reason){lo=Math.max(0,Math.min(q,lo));hi=Math.max(lo,Math.min(q,hi));const slope=o.mode==='budget'?-unitReduction:o.mode==='target'?unitCash:unitCash-o.carbonPrice*unitReduction;recommendation=evaluate(slope< -1e-8?hi:slope>1e-8?lo:(unitReduction>=0?hi:lo));}
- return {available:true,q,p,safPrice,saving,allJet,allSaf,unitCash,unitReduction,reason,feasible:!!recommendation,recommendation,locked:fuel.locked,points:(fuel.locked?[1]:[0,.25,.5,.75,1]).map(f=>evaluate(q*f)),costPerTonne:unitReduction>1e-10?unitCash/unitReduction:null};
+ return {available:true,q,p,d,safPrice,saving,allJet,allSaf,unitCash,unitReduction,reason,feasible:!!recommendation,recommendation,locked:fuel.locked,points:(fuel.locked?[1]:[0,.25,.5,.75,1]).map(f=>evaluate(q*f)),costPerTonne:unitReduction>1e-10?unitCash/unitReduction:null};
 }
