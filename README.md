@@ -28,6 +28,7 @@ No `npm install` is needed. Tests cover allocation constraints, shared supply, d
 - **Routes:** origin/destination selection, disruption assumptions, recommendations, network map and route editor.
 - **Cost & GHG:** budget, reduction-target and internal-carbon-value optimization, plus conventional-fuel fallback.
 - **Supply & Constraints:** supplier offers, inventory, delivery lanes, airport limits and planning controls.
+- **Compliance Plan:** for airlines. A two-stage stochastic LP picks how much SAF to contract from each supplier offer for the compliance year, then tests the plan against weather seasons (extra burn, diversions) and supplier shortfalls (hurricane-exposed suppliers fail more in severe seasons). Each delivered tonne is claimed once against EU ETS, CORSIA or the corporate SAF target; spot SAF, book-and-claim certificates, allowances and CORSIA units cover gaps. A slider trades expected cost against bad-year cost (CVaR), compared with a plan sized for an average year.
 - **Supplier Plan:** for fuel suppliers. Allocates each month's SAF batches to airports with an exact LP, stacking RINs, California/Oregon/Washington clean fuel credits, Illinois and Minnesota SAF credits and 45Z, plus ReFuelEU penalties avoided and UK mandate certificates. Shows value per gallon by source, mandate coverage, the value of extra uptake or volume, and the gain over a credit-blind nearest-airport plan.
 - **SAF Airports:** searchable 183-airport US/Europe evidence directory, CSV and scenario imports.
 - **Methodology:** probability model, lifecycle comparison and assumptions.
@@ -41,7 +42,7 @@ The interface uses US gallons and USD/US gallon. GHG results use metric tonnes C
 | `dist/index.html` | Page structure and accessible section tabs |
 | `dist/app.js` | UI, scenario editing, browser-local persistence and CSV export |
 | `dist/engine.mjs` | Two-stage supply allocation (exact LP by default, greedy baseline) |
-| `dist/lp.mjs` | Dependency-free simplex solver (Bland's rule, row scaling) |
+| `dist/lp.mjs` | Dependency-free simplex: `maximize` (≤ rows) and `solveLP` (two-phase, ≤/≥/= rows, min or max) |
 | `dist/fallback.mjs` | Conventional-fuel what-if comparison |
 | `dist/tradeoff.mjs` | Continuous selected-route cost–GHG optimizer |
 | `dist/units.mjs` | US gallon and fuel-price conversion boundary |
@@ -50,6 +51,8 @@ The interface uses US gallons and USD/US gallon. GHG results use metric tonnes C
 | `tools/build-basemap.mjs` | Dev-only generator for `basemap.mjs` from US Census boundaries |
 | `dist/worldmap.mjs` | Generated North Atlantic land and country borders for US–Europe scenarios (~41 KB) |
 | `tools/build-worldmap.mjs` | Dev-only generator for `worldmap.mjs` from Natural Earth 1:50m |
+| `dist/compliance.mjs` | Compliance Plan model: scenarios, two-stage stochastic LP with CVaR, average-year comparison |
+| `dist/compliance-ui.mjs` | Compliance Plan tab |
 | `dist/supplier.mjs` | Supplier Plan model: per-gallon value stack, mandate pools, LP allocation, nearest-airport comparison |
 | `dist/supplier-ui.mjs` | Supplier Plan tab: inputs, results, CSV export, saved-scenario restore |
 | `dist/policy.mjs` | Credit prices, program parameters and mandate levels with sources and the date checked |
@@ -88,3 +91,7 @@ When a scenario includes airports outside the contiguous US, the map switches to
 ## Supplier Plan values
 
 Program values were checked on 27 October 2026 and live in `dist/policy.mjs`, each with its source. All are editable in the tab. Two need your own inputs before real use: Oregon's 2026 CFP benchmark is an estimate (replace from OAR 340-253-8040 Table 2), and the surplus UK certificate sale price defaults to £0 because there is no public price. Batches, airports, lanes and uptake are illustrative. The model is a screening tool, not tax, legal or trading advice.
+
+## Compliance Plan values
+
+Airline obligations by region, checked 27 October 2026 (sources listed in the tab): EU ETS covers intra-EEA flights with full auctioning from 2026, SAF counts as zero emissions and 20M SAF allowances cover 50–95% of the price gap; ReFuelEU requires airlines to uplift 90% of EU-departing fuel at EU airports; CORSIA's mandatory phase starts in 2027 (the US volunteered for the earlier phases; Canada has it in regulation). California's proposed intrastate jet obligation (2028) is not modeled. Two inputs are estimates to replace: the CORSIA sector growth factor (19%) and the CORSIA unit price ($25/t, a 2027 projection).

@@ -50,3 +50,13 @@ html{font-size:16px}body{font-size:16px;line-height:1.6}button,input,select{line
 .sup-policy small{font-weight:400;color:#7b8191;line-height:1.5}.sup-policy a{font-weight:500;font-size:12px;color:#315bce}.sup-policy .sup-check{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.sup-policy .sup-check{flex-wrap:wrap}.sup-policy .sup-check span{flex:1;min-width:0}.sup-policy .sup-check small{flex-basis:100%}
 .sup-method{margin-top:24px}.sup-method p{max-width:80ch;line-height:1.7;margin-top:10px}.sup-sources{margin-top:14px;padding-left:18px;display:grid;gap:6px;font-size:14px}.sup-sources a{color:#315bce}
 @media(max-width:900px){.sup-grid{grid-template-columns:1fr}.sup-legend{padding:0 16px 12px}.sup-compliance{padding:4px 16px 18px}.sup-policy{padding:16px}}
+
+/* Compliance Plan */
+.cmp-risk{display:grid;grid-template-columns:1fr minmax(200px,340px);gap:24px;align-items:center;padding:20px 22px;margin-bottom:22px}.cmp-risk label{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:16px}.cmp-risk label span{font-size:14px;color:#315bce;font-weight:600}.cmp-risk p{font-size:14px;color:#616a70;line-height:1.6;margin-top:6px;max-width:70ch}.cmp-risk input[type=range]{width:100%;accent-color:#315bce}
+.cmp-regime{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:#e9ebf2;color:#515d81}.cmp-regime.active{background:#f7f0df;color:#8a6a2c}.cmp-regime.severe{background:#f6e3df;color:#9a3d2c}
+.cmp-short{font-size:13px;color:#4f5668;min-width:150px;max-width:260px}
+.cmp-bar{position:relative;height:12px;width:240px;max-width:100%;background:#f1f3f8;border-radius:3px}.cmp-bar i{display:block;height:100%;background:var(--sup-lcfs);border-radius:3px}.cmp-bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#bb965c;margin-left:-1px}
+.cmp-tick-key{width:3px!important;height:14px!important;background:#bb965c}
+.cmp-code{width:80px;border:1px solid #d9dce5;padding:7px;border-radius:4px;font-size:14px;text-transform:uppercase}
+.cmp-src{font-size:12px;color:#315bce;white-space:nowrap}
+@media(max-width:760px){.cmp-risk{grid-template-columns:1fr}}
