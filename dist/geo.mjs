@@ -49,7 +49,8 @@ export function distanceKm([lon1, lat1], [lon2, lat2]) {
 // airports outside that region into a coordinate overview without inventing land outlines.
 export function fitNetwork(points){
  const extended=points.some(p=>p.lon < -125||p.lon > -66||p.lat < 24||p.lat > 50);
- if(!extended)return {extended:false,project,graticule:''};
+ // kmPx: map pixels per km (domestic: at the Albers reference; extended: along the reference parallel).
+ if(!extended)return {extended:false,project,graticule:'',kmPx:FIT.k/EARTH_RADIUS_KM};
  const lat0=points.reduce((s,p)=>s+p.lat,0)/points.length,cos=Math.cos(lat0*RAD);
  const raw=(lon,lat)=>[lon*cos,-lat];
  const coords=points.map(p=>raw(p.lon,p.lat));
@@ -61,5 +62,15 @@ export function fitNetwork(points){
  let graticule='';
  for(let lon=-180;lon<=180;lon+=20)graticule+=path([lon,15],[lon,75]);
  for(let lat=20;lat<=70;lat+=10)graticule+=path([-180,lat],[180,lat]);
- return {extended:true,project:fitted,graticule};
+ return {extended:true,project:fitted,graticule,kmPx:k/(EARTH_RADIUS_KM*RAD)};
+}
+
+// SVG path for flat [lon,lat,lon,lat,...] arrays stored as integers in 1/scale degrees.
+export function flatPath(lines,project,scale=1,close=false){
+ let d='';
+ for(const line of lines){
+  for(let i=0;i<line.length;i+=2){const [x,y]=project(line[i]/scale,line[i+1]/scale);d+=(i?'L':'M')+x.toFixed(1)+','+y.toFixed(1);}
+  if(close)d+='Z';
+ }
+ return d;
 }

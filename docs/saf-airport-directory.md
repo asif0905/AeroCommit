@@ -11,7 +11,7 @@ Snapshot retrieved 24 October 2026. The directory is not a real-time inventory f
 
 ## Planning behavior
 
-Adding a directory airport creates zero-demand and zero-capacity lanes to the three illustrative suppliers. Operational/delivery risks start at 100% as conservative placeholders labelled Not configured; these must be replaced with user assumptions. Source records do not populate inventory, price, CI, or transit times. No airport-level supplier contract is implied. Imported airports are available in route-editor origin/destination selectors and persist through Save scenario locally. Demo scenarios do not overwrite imported airport risks. Expanded network views fit actual coordinates without land outlines; domestic scenarios retain the detailed US basemap.
+Adding a directory airport creates zero-demand and zero-capacity lanes to the three illustrative suppliers. Operational/delivery risks start at 100% as conservative placeholders labelled Not configured; these must be replaced with user assumptions. Source records do not populate inventory, price, CI, or transit times. No airport-level supplier contract is implied. Imported airports are available in route-editor origin/destination selectors and persist through Save scenario locally. Demo scenarios do not overwrite imported airport risks. Expanded network views fit actual coordinates over Natural Earth coastlines and country borders; domestic scenarios retain the detailed US basemap. Airports with Not configured risk show no weather glow on the map. The directory CSV has one row per evidence record with a fixed 12-column layout; extra source identifiers go in the Other identifiers column.
 
 ## Refresh
 
