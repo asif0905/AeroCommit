@@ -1,5 +1,6 @@
 import {safAirports,checkedOn} from './airports.mjs';
 import {countryName,directoryCsvRows,toCsv} from './directory.mjs';
+import {initSupplier,renderSupplierResults,getSupplier,restoreSupplier,resetSupplier} from './supplier-ui.mjs';
 import {gallons,toDisplay,fromDisplay,isVolume,isPrice,GALLONS_PER_TONNE} from './units.mjs';
 import {tradeoffDefaults,optimizeTradeoff} from './tradeoff.mjs';
 import {fallbackDefaults,compareFallback} from './fallback.mjs';
@@ -22,16 +23,17 @@ const hazards=['Not configured','Stable conditions','Smoke advisory','Strong hea
 const bounds={supply:[0,2000],price:[1,20000],ci:[0,300],risk:[0,100],delivery:[0,100],wind:[0,200],demand:[0,2000],need:[24,47],lead:[0,72],freight:[0,10000],capacity:[0,2000],baseline:[1,300],lhv:[1,60],target:[0,2000],enroute:[0,100],depart:[24,47],duration:[1,18]};
 
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),3200)}
-const tabLabels={overview:'Overview',routes:'Routes',economics:'Cost & GHG',supply:'Supply & Constraints',airports:'SAF Airports',method:'Methodology'};
+const tabLabels={overview:'Overview',routes:'Routes',economics:'Cost & GHG',supply:'Supply & Constraints',airports:'SAF Airports',supplier:'Supplier Plan',method:'Methodology'};
 let activeTab='overview';
 function changeTab(id,scroll=true){
  if(!tabLabels[id])id='overview';activeTab=id;
  $$('.tab-panel').forEach(p=>p.hidden=p.id!==id);
  $$('.section-tab').forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
  $('#breadcrumb').textContent=tabLabels[id];$('.editorial-hero').hidden=id!=='overview';
- $('.workspace-title h2').textContent={overview:'Tomorrow’s decisions. A clearer view.',routes:'Routes & destination risk',economics:'Cost & GHG decisions',supply:'Supply & delivery constraints',airports:'US & European SAF airports',method:'How the planner works'}[id];
+ $('.workspace-title h2').textContent={overview:'Tomorrow’s decisions. A clearer view.',routes:'Routes & destination risk',economics:'Cost & GHG decisions',supply:'Supply & delivery constraints',airports:'US & European SAF airports',supplier:'Supplier allocation & credit value',method:'How the planner works'}[id];
  if(id==='supply'||id==='routes')renderInputs();
  if(id==='airports')renderDirectory();
+ if(id==='supplier')renderSupplierResults();
  if(id==='method'){ $('#baseline').value=state.baseline;$('#lhv').value=state.lhv; }
  history.replaceState(null,'','#'+id);
  if(scroll)$('#planning-workspace').scrollIntoView({behavior:'auto',block:'start'});
@@ -163,8 +165,8 @@ document.addEventListener('input',e=>{const t=e.target;if(!t.dataset.group||t.ty
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset.group)return;const {group,index,key}=t.dataset;let v=t.value;if(['origin','destination'].includes(key)){if(!state.airports.some(a=>a.id===v))return;const other=key==='origin'?'destination':'origin';if(state[group][index][other]===v){t.value=toDisplay(key,state[group][index][key]);toast('Origin and destination must be different.');return;}}else if(key==='airline'){v=v.trim().slice(0,60)||'Demo airline';}else if(key!=='hazard'){if(t.value.trim()===''||!Number.isFinite(Number(v))){t.value=toDisplay(key,state[group][index][key]);return;}const [min,max]=bounds[key];v=Math.min(max,Math.max(min,fromDisplay(key,Number(v))));}state[group][index][key]=v;state.scenario='custom';$('#scenario').value='custom';recalc();if(!$('#supply').hidden||!$('#routes').hidden)renderInputs()});
 for(const key of ['baseline','lhv'])$('#'+key).addEventListener('change',e=>{const v=Number(e.target.value);if(e.target.value.trim()===''||!Number.isFinite(v)){e.target.value=state[key];return;}state[key]=Math.min(bounds[key][1],Math.max(bounds[key][0],v));e.target.value=state[key];recalc()});
 $('#help').onclick=()=>changeTab('method');$('#edit-all').onclick=()=>changeTab('supply');$('.return-overview').onclick=()=>changeTab('overview');$('#close-drawer').onclick=closeDrawer;$('#drawer-overlay').onclick=closeDrawer;$('#export').onclick=exportBrief;
-$('#reset').onclick=()=>{fallback=fallbackDefaults();tradeoff=tradeoffDefaults();syncTradeoff();syncFallback();state=demoState();syncControls();recalc();renderInputs();try{localStorage.removeItem('aerocommit-v2')}catch{}toast('Demonstration restored.');};
-$('#save').onclick=()=>{try{localStorage.setItem('aerocommit-v2',JSON.stringify({...state,fallback,tradeoff}));toast('Scenario saved in this browser.')}catch{toast('Browser storage is unavailable; export the brief instead.')}};
+$('#reset').onclick=()=>{resetSupplier();fallback=fallbackDefaults();tradeoff=tradeoffDefaults();syncTradeoff();syncFallback();state=demoState();syncControls();recalc();renderInputs();try{localStorage.removeItem('aerocommit-v2')}catch{}toast('Demonstration restored.');};
+$('#save').onclick=()=>{try{localStorage.setItem('aerocommit-v2',JSON.stringify({...state,fallback,tradeoff,supplier:getSupplier()}));toast('Scenario saved in this browser.')}catch{toast('Browser storage is unavailable; export the brief instead.')}};
 // Restore only validated values into the known demo schema; no arbitrary markup or fields.
 const evidenceGroup=status=>['Physical supply listed','Reported offering'].includes(status)?'supply':['Occasional / operator use','Historical delivery agreement','Batch delivery'].includes(status)?'occasional':'project';
 function addDirectoryAirport(id,notify=true){
@@ -196,6 +198,8 @@ $('#fallback-locked').onchange=e=>{fallback.locked=e.target.checked;renderFallba
 $('#compare-disrupted').onclick=()=>{const f=[...result.flightRows].filter(f=>f.firm+f.hold>0).sort((a,b)=>b.routeRisk-a.routeRisk)[0];if(f){selectedFlight=f.id;renderRouteFocus();renderMap();renderFallback();}else toast('No allocated route is available to compare.');};
 $('#tradeoff-mode').onchange=e=>{tradeoff.mode=e.target.value;renderTradeoff();};
 for(const key of ['budget','target','carbonPrice']){$('#tradeoff-'+key).oninput=e=>{if(e.target.value.trim()===''||!Number.isFinite(Number(e.target.value)))return;tradeoff[key]=Math.max(0,Math.min(key==='budget'?100000000:1000000,Number(e.target.value)));renderTradeoff();};$('#tradeoff-'+key).onchange=syncTradeoff;}
+try{const saved=JSON.parse(localStorage.getItem('aerocommit-v2')||'null');if(saved?.supplier)restoreSupplier(saved.supplier);}catch{}
+initSupplier({toast});
 syncTradeoff();syncFallback();syncControls();recalc();renderInputs();
 
 $('.section-tabs').addEventListener('keydown',e=>{const tabs=[...$$('.section-tab')],i=tabs.indexOf(e.target);if(i<0)return;let n;if(e.key==='ArrowRight')n=(i+1)%tabs.length;else if(e.key==='ArrowLeft')n=(i+tabs.length-1)%tabs.length;else if(e.key==='Home')n=0;else if(e.key==='End')n=tabs.length-1;else return;e.preventDefault();e.stopPropagation();changeTab(tabs[n].dataset.tab,false);tabs[n].focus();});
