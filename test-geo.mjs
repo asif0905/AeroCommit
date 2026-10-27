@@ -32,3 +32,24 @@ const net=fitNetwork(combined);assert.equal(net.extended,true);
 for(const p of combined){const [x,y]=net.project(p.lon,p.lat);assert.ok(Number.isFinite(x)&&x>=40&&x<=790&&y>=30&&y<=360);}
 assert.equal(fitNetwork(s.airports).extended,false);
 console.log('Expanded US–Europe map: all airport positions fit, domestic basemap preserved.');
+
+// World outlines for the extended view: present, inside the region, and AMS/LHR sit on land-adjacent coordinates.
+const {WORLD_LAND,WORLD_BORDERS,SCALE}=await import('./dist/worldmap.mjs');
+const {flatPath}=await import('./dist/geo.mjs');
+assert.ok(WORLD_LAND.length>20&&WORLD_BORDERS.length>20);
+for(const ring of WORLD_LAND){assert.equal(ring.length%2,0);for(let i=0;i<ring.length;i+=2)assert.ok(ring[i]/SCALE>=-180&&ring[i]/SCALE<=75.01&&Math.abs(ring[i+1]/SCALE)<=90);}
+assert.ok(/^M[-\d.]+,[-\d.]+L/.test(flatPath(WORLD_LAND,net.project,SCALE,true)));
+// Point-in-polygon: AMS and JFK are on land; a mid-Atlantic point is not.
+const onLand=(lon,lat)=>WORLD_LAND.reduce((inside,r)=>{let c=false;for(let i=0,j=r.length-2;i<r.length;j=i,i+=2){const xi=r[i]/SCALE,yi=r[i+1]/SCALE,xj=r[j]/SCALE,yj=r[j+1]/SCALE;if((yi>lat)!==(yj>lat)&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)c=!c;}return inside!==c;},false);
+assert.ok(onLand(4.76,52.31)&&onLand(-87.9,41.97)&&!onLand(-40,40),'land/sea check');
+assert.ok(net.kmPx>0&&fitNetwork(s.airports).kmPx>0,'scale bar factor');
+console.log('World outlines: rings valid, land/sea point checks and scale factor passed.');
+
+// Label placement: overlapping anchors (LHR/AMS-style) get non-overlapping boxes inside bounds.
+const {placeLabels}=await import('./dist/labels.mjs');
+const anchors=[{x:600,y:100,w:120,h:32},{x:612,y:96,w:120,h:32},{x:606,y:110,w:120,h:32}];
+const boxes=placeLabels(anchors,anchors.map(a=>({x:a.x-11,y:a.y-11,w:22,h:22})));
+const ov=(a,b)=>Math.min(a.x+a.w,b.x+b.w)>Math.max(a.x,b.x)&&Math.min(a.y+a.h,b.y+b.h)>Math.max(a.y,b.y);
+for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++)assert.ok(!ov(boxes[i],boxes[j]),'labels overlap');
+const edge=placeLabels([{x:840,y:200,w:120,h:32}])[0];assert.ok(edge.x+edge.w<=850,'label kept inside map');
+console.log('Labels: clustered airports placed without overlap, edge labels kept in bounds.');

@@ -47,6 +47,10 @@ The interface uses US gallons and USD/US gallon. GHG results use metric tonnes C
 | `dist/geo.mjs` | Albers equal-area projection, great-circle paths and distances |
 | `dist/basemap.mjs` | Generated contiguous-US land and state-border paths (~21 KB) |
 | `tools/build-basemap.mjs` | Dev-only generator for `basemap.mjs` from US Census boundaries |
+| `dist/worldmap.mjs` | Generated North Atlantic land and country borders for US–Europe scenarios (~41 KB) |
+| `tools/build-worldmap.mjs` | Dev-only generator for `worldmap.mjs` from Natural Earth 1:50m |
+| `dist/labels.mjs` | Collision-avoiding placement for airport and hub labels |
+| `dist/directory.mjs` | Directory helpers: country names and aligned CSV export |
 | `dist/style.css`, `dist/theme.css` | Responsive Clarity brand and readable typography |
 | `dist/assets/` | Selected logo and cinematic lake-flight hero |
 | `test-*.mjs` | Model and unit verification |
@@ -75,4 +79,4 @@ Deploy the contents of `dist/` to a static host. No backend, secrets or database
 
 Airport directory snapshot: 24 October 2026. Coverage is not exhaustive or live inventory. See `docs/saf-airport-directory.md`. Imported airports start with no delivery capacity and unconfigured risks; demo weather presets do not overwrite those risks.
 
-When a scenario includes airports outside the contiguous US, the map fits all airport coordinates into an overview without country outlines. Domestic scenarios retain the detailed Albers US basemap.
+When a scenario includes airports outside the contiguous US, the map switches to a fitted overview with Natural Earth coastlines and country borders (public domain, via [world-atlas](https://github.com/topojson/world-atlas)); domestic scenarios keep the detailed Albers US basemap. Airport and hub labels are placed to avoid each other and the markers. Imported airports whose risk is still Not configured show no weather glow. To regenerate the outlines, install `world-atlas@2.0.2 topojson-client@3.1.0 topojson-simplify@3.0.3` and run `node tools/build-worldmap.mjs` from that folder.
