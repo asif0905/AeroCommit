@@ -28,6 +28,7 @@ No `npm install` is needed. Tests cover allocation constraints, shared supply, d
 - **Routes:** origin/destination selection, disruption assumptions, recommendations, network map and route editor.
 - **Cost & GHG:** budget, reduction-target and internal-carbon-value optimization, plus conventional-fuel fallback.
 - **Supply & Constraints:** supplier offers, inventory, delivery lanes, airport limits and planning controls.
+- **Supplier Plan:** for fuel suppliers. Allocates each month's SAF batches to airports with an exact LP, stacking RINs, California/Oregon/Washington clean fuel credits, Illinois and Minnesota SAF credits and 45Z, plus ReFuelEU penalties avoided and UK mandate certificates. Shows value per gallon by source, mandate coverage, the value of extra uptake or volume, and the gain over a credit-blind nearest-airport plan.
 - **SAF Airports:** searchable 183-airport US/Europe evidence directory, CSV and scenario imports.
 - **Methodology:** probability model, lifecycle comparison and assumptions.
 
@@ -49,6 +50,9 @@ The interface uses US gallons and USD/US gallon. GHG results use metric tonnes C
 | `tools/build-basemap.mjs` | Dev-only generator for `basemap.mjs` from US Census boundaries |
 | `dist/worldmap.mjs` | Generated North Atlantic land and country borders for US–Europe scenarios (~41 KB) |
 | `tools/build-worldmap.mjs` | Dev-only generator for `worldmap.mjs` from Natural Earth 1:50m |
+| `dist/supplier.mjs` | Supplier Plan model: per-gallon value stack, mandate pools, LP allocation, nearest-airport comparison |
+| `dist/supplier-ui.mjs` | Supplier Plan tab: inputs, results, CSV export, saved-scenario restore |
+| `dist/policy.mjs` | Credit prices, program parameters and mandate levels with sources and the date checked |
 | `dist/labels.mjs` | Collision-avoiding placement for airport and hub labels |
 | `dist/directory.mjs` | Directory helpers: country names and aligned CSV export |
 | `dist/style.css`, `dist/theme.css` | Responsive Clarity brand and readable typography |
@@ -80,3 +84,7 @@ Deploy the contents of `dist/` to a static host. No backend, secrets or database
 Airport directory snapshot: 24 October 2026. Coverage is not exhaustive or live inventory. See `docs/saf-airport-directory.md`. Imported airports start with no delivery capacity and unconfigured risks; demo weather presets do not overwrite those risks.
 
 When a scenario includes airports outside the contiguous US, the map switches to a fitted overview with Natural Earth coastlines and country borders (public domain, via [world-atlas](https://github.com/topojson/world-atlas)); domestic scenarios keep the detailed Albers US basemap. Airport and hub labels are placed to avoid each other and the markers. Imported airports whose risk is still Not configured show no weather glow. To regenerate the outlines, install `world-atlas@2.0.2 topojson-client@3.1.0 topojson-simplify@3.0.3` and run `node tools/build-worldmap.mjs` from that folder.
+
+## Supplier Plan values
+
+Program values were checked on 27 October 2026 and live in `dist/policy.mjs`, each with its source. All are editable in the tab. Two need your own inputs before real use: Oregon's 2026 CFP benchmark is an estimate (replace from OAR 340-253-8040 Table 2), and the surplus UK certificate sale price defaults to £0 because there is no public price. Batches, airports, lanes and uptake are illustrative. The model is a screening tool, not tax, legal or trading advice.
