@@ -24,6 +24,7 @@ const RULES = [
 
 let C = demoCompliance(), result = null, timer = null, toastFn = () => {};
 export const getCompliance = () => C;
+export const getComplianceResult = () => result;
 export function resetCompliance() { C = demoCompliance(); renderComplianceInputs(); renderComplianceResults(); }
 
 // Restore saved inputs: known fields only, numbers within bounds.

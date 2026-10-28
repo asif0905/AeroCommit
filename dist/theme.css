@@ -60,3 +60,18 @@ html{font-size:16px}body{font-size:16px;line-height:1.6}button,input,select{line
 .cmp-code{width:80px;border:1px solid #d9dce5;padding:7px;border-radius:4px;font-size:14px;text-transform:uppercase}
 .cmp-src{font-size:12px;color:#315bce;white-space:nowrap}
 @media(max-width:760px){.cmp-risk{grid-template-columns:1fr}}
+/* Live Flights */
+.trk-controls{margin-bottom:18px}.trk-inputs select,.trk-inputs input[type=number]{display:block;width:100%;margin-top:4px;border:1px solid #d9dce5;border-radius:4px;padding:8px;font:inherit;font-size:14px;background:#fff;color:#292d35}
+.trk-inputs .trk-check{display:flex;align-items:center;gap:8px;align-self:end;padding-bottom:8px}.trk-plan{margin:0;padding:0 24px 20px;font-size:15px;color:#424b61}
+.trk-bar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 16px}.trk-status{font-size:14px;color:#4f5668;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.trk-status a{color:#315bce}
+.trk-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#b9bfcc}.trk-dot.live{background:#1e9e5a;box-shadow:0 0 0 3px rgba(30,158,90,.18)}.trk-dot.sim{background:#d49a2a}.trk-dot.paused{background:#8a92a3}
+.trk-map{padding:0 18px 18px}.trk-map svg{display:block;width:100%;height:auto;border-radius:6px}
+.trk-sea{fill:#f3f6fb}.trk-land{fill:#e4e8f0;stroke:#cfd5e2;stroke-width:.8}.trk-border{fill:none;stroke:#cfd5e2;stroke-width:.8}
+.trk-ring{fill:none;stroke:#c3cad8;stroke-dasharray:4 5}.trk-ring-label{font-size:12px;fill:#7a8396}
+.trk-airport circle{fill:#292d35}.trk-airport text{font-size:14px;font-weight:700;fill:#292d35}
+.trk-plane path{fill:#a3abba;stroke:#fff;stroke-width:1}.trk-plane.own path{fill:#315bce}.trk-plane.saf path{fill:#1e9e5a}.trk-plane.ground{opacity:.45}
+.trk-table small{display:block;color:#7a8396;font-size:12px}.trk-own td:first-child b{color:#315bce}
+.trk-phase{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:#eef0f5;color:#5a6274}.trk-phase.departing{background:#e3f3ea;color:#18774a}.trk-phase.arriving{background:#eef2fc;color:#315bce}
+@media(max-width:1100px){.trk-inputs{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.trk-inputs{grid-template-columns:1fr}.trk-map{padding:0 8px 8px}}
+.trk-plane.gen{opacity:.4}.trk-status code{font-size:13px;background:#eef0f5;padding:1px 5px;border-radius:3px}.trk-errs{width:100%;font-size:13px;color:#6b7383}.trk-errs summary{cursor:pointer}
+.trk-inputs input[type=url]{display:block;width:100%;margin-top:4px;border:1px solid #d9dce5;border-radius:4px;padding:8px;font:inherit;font-size:14px}

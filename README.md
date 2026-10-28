@@ -4,13 +4,17 @@ Weather-aware sustainable aviation fuel supply planning prototype. Compare tomor
 
 ## Run locally
 
-No build or JavaScript dependencies are required. Serve `dist/` over HTTP (ES modules do not run correctly from a `file://` URL):
+No build or JavaScript dependencies are required. Requires Node.js 18 or later:
 
 ```sh
-python -m http.server 8080 --directory dist
+npm start
 ```
 
-Open http://localhost:8080. Any static web server can serve the same directory.
+Open http://localhost:8080. The bundled server (`server.mjs`) serves `dist/` and relays live flight data for the Live Flights tab at `/api/flights`. Any static web server can also serve `dist/` (for example `python -m http.server 8080 --directory dist`), but Live Flights then falls back to simulated traffic unless you set a relay URL.
+
+### Live flight data on a hosted copy
+
+Public ADS-B feeds (adsb.lol, airplanes.live, OpenSky) answer servers but refuse browser requests from other websites, so a hosted copy of the app needs a small relay. `proxy/cloudflare-worker.js` is a single-file Cloudflare Worker (the free plan is enough): create a Worker, paste the file, deploy, and paste the worker URL into **Live Flights → Relay URL**. Set `ALLOWED_ORIGINS` on the Worker to restrict which sites may use it. The worker is generated from `relay.mjs` by `node tools/build-worker.mjs`.
 
 ## Tests
 
@@ -20,7 +24,7 @@ Requires Node.js 18 or later:
 npm test
 ```
 
-No `npm install` is needed. Tests cover allocation constraints, shared supply, delivery timing, LP optimality versus the greedy baseline, map projection and airport distances, planner/trade-off consistency, fallback accounting, cost–GHG optimization, and gallon conversion.
+No `npm install` is needed. Tests cover allocation constraints, shared supply, delivery timing, LP optimality versus the greedy baseline, map projection and airport distances, planner/trade-off consistency, fallback accounting, cost–GHG optimization, gallon conversion, flight-feed parsing and SAF impact estimates, and the flight relay (server and Cloudflare Worker).
 
 ## Workspace sections
 
@@ -30,6 +34,7 @@ No `npm install` is needed. Tests cover allocation constraints, shared supply, d
 - **Supply & Constraints:** supplier offers, inventory, delivery lanes, airport limits and planning controls.
 - **Compliance Plan:** for airlines. A two-stage stochastic LP picks how much SAF to contract from each supplier offer for the compliance year, then tests the plan against weather seasons (extra burn, diversions) and supplier shortfalls (hurricane-exposed suppliers fail more in severe seasons). Each delivered tonne is claimed once against EU ETS, CORSIA or the corporate SAF target; spot SAF, book-and-claim certificates, allowances and CORSIA units cover gaps. A slider trades expected cost against bad-year cost (CVaR), compared with a plan sized for an average year.
 - **Supplier Plan:** for fuel suppliers. Allocates each month's SAF batches to airports with an exact LP, stacking RINs, California/Oregon/Washington clean fuel credits, Illinois and Minnesota SAF credits and 45Z, plus ReFuelEU penalties avoided and UK mandate certificates. Shows value per gallon by source, mandate coverage, the value of extra uptake or volume, and the gain over a credit-blind nearest-airport plan.
+- **Live Flights:** aircraft within 50–250 km of an airport from public ADS-B feeds, refreshed every 15 seconds, with an estimated SAF share and CO₂ avoided per flight. Departures of the airline you pick carry the SAF your Compliance Plan contracts at that airport; its other flights use the plan's network average; other airlines use an average you set. Burn rates are typical values by aircraft type; CO₂ avoided follows the CORSIA convention 3.16 × (1 − CI/89). Private, business and training aircraft are listed but not counted. SAF is blended into shared airport fuel, so these are book-and-claim style estimates, not measurements.
 - **SAF Airports:** searchable 183-airport US/Europe evidence directory, CSV and scenario imports.
 - **Methodology:** probability model, lifecycle comparison and assumptions.
 
@@ -53,6 +58,11 @@ The interface uses US gallons and USD/US gallon. GHG results use metric tonnes C
 | `tools/build-worldmap.mjs` | Dev-only generator for `worldmap.mjs` from Natural Earth 1:50m |
 | `dist/compliance.mjs` | Compliance Plan model: scenarios, two-stage stochastic LP with CVaR, average-year comparison |
 | `dist/compliance-ui.mjs` | Compliance Plan tab |
+| `dist/tracker.mjs` | Live Flights model: feed parsing, flight phase, burn by aircraft type, plan SAF shares, CO₂ avoided, simulated traffic |
+| `dist/tracker-ui.mjs` | Live Flights tab: polling, map and flight table |
+| `server.mjs` | Local server: serves `dist/` and relays live flight data |
+| `relay.mjs` | Flight-data relay shared by the server and the Cloudflare Worker |
+| `proxy/cloudflare-worker.js` | Single-file relay for hosted copies (generated) |
 | `dist/supplier.mjs` | Supplier Plan model: per-gallon value stack, mandate pools, LP allocation, nearest-airport comparison |
 | `dist/supplier-ui.mjs` | Supplier Plan tab: inputs, results, CSV export, saved-scenario restore |
 | `dist/policy.mjs` | Credit prices, program parameters and mandate levels with sources and the date checked |

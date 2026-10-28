@@ -1,6 +1,7 @@
 import {safAirports,checkedOn} from './airports.mjs';
 import {countryName,directoryCsvRows,toCsv} from './directory.mjs';
 import {initSupplier,renderSupplierResults,getSupplier,restoreSupplier,resetSupplier} from './supplier-ui.mjs';
+import {initTracker,startTracker,stopTracker} from './tracker-ui.mjs';
 import {initCompliance,renderComplianceResults,getCompliance,restoreCompliance,resetCompliance} from './compliance-ui.mjs';
 import {gallons,toDisplay,fromDisplay,isVolume,isPrice,GALLONS_PER_TONNE} from './units.mjs';
 import {tradeoffDefaults,optimizeTradeoff} from './tradeoff.mjs';
@@ -24,18 +25,19 @@ const hazards=['Not configured','Stable conditions','Smoke advisory','Strong hea
 const bounds={supply:[0,2000],price:[1,20000],ci:[0,300],risk:[0,100],delivery:[0,100],wind:[0,200],demand:[0,2000],need:[24,47],lead:[0,72],freight:[0,10000],capacity:[0,2000],baseline:[1,300],lhv:[1,60],target:[0,2000],enroute:[0,100],depart:[24,47],duration:[1,18]};
 
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),3200)}
-const tabLabels={overview:'Overview',routes:'Routes',economics:'Cost & GHG',supply:'Supply & Constraints',airports:'SAF Airports',supplier:'Supplier Plan',compliance:'Compliance Plan',method:'Methodology'};
+const tabLabels={overview:'Overview',routes:'Routes',economics:'Cost & GHG',supply:'Supply & Constraints',airports:'SAF Airports',supplier:'Supplier Plan',compliance:'Compliance Plan',tracker:'Live Flights',method:'Methodology'};
 let activeTab='overview';
 function changeTab(id,scroll=true){
  if(!tabLabels[id])id='overview';activeTab=id;
  $$('.tab-panel').forEach(p=>p.hidden=p.id!==id);
  $$('.section-tab').forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
  $('#breadcrumb').textContent=tabLabels[id];$('.editorial-hero').hidden=id!=='overview';
- $('.workspace-title h2').textContent={overview:'Tomorrow’s decisions. A clearer view.',routes:'Routes & destination risk',economics:'Cost & GHG decisions',supply:'Supply & delivery constraints',airports:'US & European SAF airports',supplier:'Supplier allocation & credit value',compliance:'Airline SAF & carbon compliance',method:'How the planner works'}[id];
+ $('.workspace-title h2').textContent={overview:'Tomorrow’s decisions. A clearer view.',routes:'Routes & destination risk',economics:'Cost & GHG decisions',supply:'Supply & delivery constraints',airports:'US & European SAF airports',supplier:'Supplier allocation & credit value',compliance:'Airline SAF & carbon compliance',tracker:'Live flights & SAF impact',method:'How the planner works'}[id];
  if(id==='supply'||id==='routes')renderInputs();
  if(id==='airports')renderDirectory();
  if(id==='supplier')renderSupplierResults();
  if(id==='compliance')renderComplianceResults();
+ if(id==='tracker')startTracker();else stopTracker();
  if(id==='method'){ $('#baseline').value=state.baseline;$('#lhv').value=state.lhv; }
  history.replaceState(null,'','#'+id);
  if(scroll)$('#planning-workspace').scrollIntoView({behavior:'auto',block:'start'});
@@ -203,6 +205,7 @@ for(const key of ['budget','target','carbonPrice']){$('#tradeoff-'+key).oninput=
 try{const saved=JSON.parse(localStorage.getItem('aerocommit-v2')||'null');if(saved?.supplier)restoreSupplier(saved.supplier);if(saved?.compliance)restoreCompliance(saved.compliance);}catch{}
 initSupplier({toast});
 initCompliance({toast});
+initTracker();
 syncTradeoff();syncFallback();syncControls();recalc();renderInputs();
 
 $('.section-tabs').addEventListener('keydown',e=>{const tabs=[...$$('.section-tab')],i=tabs.indexOf(e.target);if(i<0)return;let n;if(e.key==='ArrowRight')n=(i+1)%tabs.length;else if(e.key==='ArrowLeft')n=(i+tabs.length-1)%tabs.length;else if(e.key==='Home')n=0;else if(e.key==='End')n=tabs.length-1;else return;e.preventDefault();e.stopPropagation();changeTab(tabs[n].dataset.tab,false);tabs[n].focus();});
