@@ -131,3 +131,19 @@ main#planning-workspace>.tab-panel,main#planning-workspace>.section-tabs,main#pl
 /* Approved AeroCommit flight-and-SAF logo lockup. */
 .brand-logo-v2{display:block;width:330px;max-width:100%;height:auto;object-fit:contain}.footer-brand .brand-logo-v2{width:290px}@media(max-width:760px){.brand-logo-v2{width:250px}.footer-brand .brand-logo-v2{width:250px}}
 .trk-credits{font-size:14px;color:#5a6274}.trk-credits a{color:#0876aa}
+
+/* Landing hero: readable entrance choreography and a quiet flight-path accent. */
+@media(prefers-reduced-motion:no-preference){
+.cinematic-flight-scene{animation-duration:18s}
+.hero-inner>.hero-eyebrow,.hero-inner>h1,.hero-inner>p,.hero-inner>.hero-actions,.hero-inner>.hero-caption{animation:hero-copy-arrive .85s cubic-bezier(.2,.75,.25,1) both}
+.hero-inner>.hero-eyebrow{animation-delay:.08s}.hero-inner>h1{animation-delay:.22s}.hero-inner>p{animation-delay:.38s}.hero-inner>.hero-actions{animation-delay:.54s}.hero-inner>.hero-caption{animation-delay:.7s}
+.editorial-hero::after{content:'';position:absolute;z-index:1;pointer-events:none;right:-8%;top:17%;width:48%;height:50%;border-top:1px solid #b9eaff65;border-radius:50%;transform:rotate(-18deg);animation:hero-flight-trace 7s ease-in-out infinite}
+.hero-primary span{display:inline-block;animation:hero-invite 1.8s ease-in-out 3;animation-delay:1.8s}
+.hero-primary{transition:transform .25s ease,box-shadow .25s ease}.hero-primary:hover{transform:translateY(-3px);box-shadow:0 10px 28px #55b8ea38}
+.editorial-hero.motion-paused *,.editorial-hero.motion-paused::after,.editorial-hero[hidden] *,.editorial-hero[hidden]::after{animation-play-state:paused!important}
+}
+@keyframes hero-copy-arrive{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes hero-flight-trace{0%,100%{opacity:0;translate:-30px 18px}25%,65%{opacity:.8}85%{opacity:0;translate:25px -14px}}
+@keyframes hero-invite{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+@media(max-width:760px){.editorial-hero::after{top:auto;bottom:40px;width:85%;height:160px}}
+@media(prefers-reduced-motion:reduce){.hero-inner>*{animation:none!important}.editorial-hero::after{display:none}}
