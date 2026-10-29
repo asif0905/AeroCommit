@@ -39,7 +39,7 @@ function changeTab(id,scroll=true){
  if(id==='compliance')renderComplianceResults();
  if(id==='tracker')startTracker();else stopTracker();
  if(id==='method'){ $('#baseline').value=state.baseline;$('#lhv').value=state.lhv; }
- history.replaceState(null,'','#'+id);
+ history.replaceState(null,'',location.pathname+location.search+(id==='overview'?'':'#'+id));
  if(scroll)$('#planning-workspace').scrollIntoView({behavior:'auto',block:'start'});
 }
 
@@ -210,7 +210,11 @@ syncTradeoff();syncFallback();syncControls();recalc();renderInputs();
 
 $('.section-tabs').addEventListener('keydown',e=>{const tabs=[...$$('.section-tab')],i=tabs.indexOf(e.target);if(i<0)return;let n;if(e.key==='ArrowRight')n=(i+1)%tabs.length;else if(e.key==='ArrowLeft')n=(i+tabs.length-1)%tabs.length;else if(e.key==='Home')n=0;else if(e.key==='End')n=tabs.length-1;else return;e.preventDefault();e.stopPropagation();changeTab(tabs[n].dataset.tab,false);tabs[n].focus();});
 window.addEventListener('hashchange',()=>changeTab(location.hash.slice(1),false));
-changeTab(location.hash.slice(1)||'overview',false);
+// New visits and reloads always start at the landing page.
+if('scrollRestoration' in history)history.scrollRestoration='manual';
+changeTab('overview',false);
+window.scrollTo({top:0,behavior:'instant'});
+window.addEventListener('pageshow',()=>{changeTab('overview',false);window.scrollTo({top:0,behavior:'instant'});});
 
 $('#hero-motion-toggle').addEventListener('click',e=>{const paused=$('.editorial-hero').classList.toggle('motion-paused');e.currentTarget.setAttribute('aria-pressed',String(paused));e.currentTarget.setAttribute('aria-label',paused?'Play cinematic motion':'Pause cinematic motion');e.currentTarget.textContent=paused?'▶  Play animation':'Ⅱ  Pause animation';});
 
