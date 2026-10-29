@@ -1,5 +1,5 @@
 // Live Flights tab: aircraft near an airport from public ADS-B feeds, with estimated SAF impact.
-import {SOURCES, validRelay, AIRLINES, EXTRA_AIRPORTS, TRACKER_CHECKED, planShares, assess, summarize, simulate, BASELINE_CI} from './tracker.mjs';
+import {SOURCES, creditOf, validRelay, AIRLINES, EXTRA_AIRPORTS, TRACKER_CHECKED, planShares, assess, summarize, simulate, BASELINE_CI} from './tracker.mjs';
 import {safAirports} from './airports.mjs';
 import {distanceKm, flatPath} from './geo.mjs';
 import {WORLD_LAND, WORLD_BORDERS, SCALE as WORLD_SCALE} from './worldmap.mjs';
@@ -52,7 +52,7 @@ export function initTracker() {
   if (!airports.some(a => a.id === S.airport)) S.airport = 'JFK';
   $('#trk-airport').innerHTML = airports.map(a => `<option value="${a.id}">${a.id} · ${esc(a.name)}${a.plan ? ' · in plan' : ''}</option>`).join('');
   $('#trk-airline').innerHTML = Object.entries(AIRLINES).sort((a, b) => a[1].localeCompare(b[1])).map(([c, n]) => `<option value="${c}">${esc(n)} (${c})</option>`).join('');
-  $('#trk-source').innerHTML = `<option value="auto">Auto: first live feed that answers</option>` + Object.entries(SOURCES).map(([k, s]) => `<option value="${k}">${esc(k === 'local' ? 'AeroCommit server (npm start)' : k === 'relay' ? 'Your relay URL' : s.label + ' (direct)')}</option>`).join('') + `<option value="sim">Simulated traffic</option>`;
+  $('#trk-source').innerHTML = `<option value="auto">Auto: first live feed that answers</option>` + `<option value="local">AeroCommit server (npm start)</option><option value="relay">Your relay URL</option>` + `<option value="sim">Simulated traffic</option>`;
   $('#trk-checked').textContent = TRACKER_CHECKED;
   syncInputs();
   const on = (id, ev, fn) => $(id).addEventListener(ev, fn);
@@ -106,18 +106,18 @@ async function poll() {
   stopTimer();
   if (!running || paused) return;
   const ap = airport(), km = S.radius;
-  let flights = null, used = null, upstream = '', errors = [];
+  let flights = null, used = null, credit = null, errors = [];
   if (S.source !== 'sim') {
     const usable = k => !SOURCES[k].needsBase || S.relay;
-    const order = S.source === 'auto' ? [workingSource, 'local', 'relay', 'adsblol', 'airplaneslive', 'opensky'].filter((k, i, a) => k && a.indexOf(k) === i && usable(k)) : [S.source].filter(usable);
+    const order = S.source === 'auto' ? [workingSource, 'local', 'relay'].filter((k, i, a) => k && a.indexOf(k) === i && usable(k)) : [S.source].filter(usable);
     if (!order.length) errors.push('Your relay: add a relay URL');
     for (const k of order) {
-      try { const json = await fetchJson(SOURCES[k].url(ap.lat, ap.lon, km, S.relay)); flights = SOURCES[k].parse(json); if (SOURCES[k].relay && typeof json?.source === 'string') upstream = json.source.slice(0, 40); used = k; break; }
+      try { const json = await fetchJson(SOURCES[k].url(ap.lat, ap.lon, km, S.relay)); flights = SOURCES[k].parse(json); credit = creditOf(json); used = k; break; }
       catch (e) { if (e.name === 'AbortError' && !running) return; errors.push(`${SOURCES[k].label}: ${e.name === 'AbortError' ? 'timed out' : e.message === 'Failed to fetch' ? 'blocked or offline' : e.message}`); }
     }
   }
   if (!running) return;
-  if (flights) { workingSource = used; status = {mode: 'live', source: used, upstream, errors}; }
+  if (flights) { workingSource = used; status = {mode: 'live', source: used, credit, errors}; }
   else { flights = simulate(ap, km); status = {mode: 'sim', errors: S.source === 'sim' ? [] : errors}; if (S.source === 'auto') workingSource = null; }
   const o = opts();
   rows = flights.filter(f => distanceKm([ap.lon, ap.lat], [f.lon, f.lat]) <= km).map(f => assess(f, o));
@@ -136,7 +136,7 @@ function render() {
   // Status line
   const st = $('#trk-status');
   if (paused) st.innerHTML = `<i class="trk-dot paused"></i><b>Paused</b>`;
-  else if (status.mode === 'live') { const src = SOURCES[status.source], feed = status.upstream || src.label; st.innerHTML = `<i class="trk-dot live"></i><b>Live</b> · ${esc(feed)}${src.relay ? ' via ' + esc(src.label) : ''} · updated ${status.at.toLocaleTimeString()} · refreshes every ${LIVE_MS / 1000} s`; }
+  else if (status.mode === 'live') { const src = SOURCES[status.source], c = status.credit; st.innerHTML = `<i class="trk-dot live"></i><b>Live</b> · ${c ? `Flight data: <a href="${c.url}" target="_blank" rel="noopener">${esc(c.name)}</a> (<a href="${c.licence}" target="_blank" rel="noopener">${esc(c.terms)}</a>)` : 'Flight data from your relay'} via ${esc(src.label)} · updated ${status.at.toLocaleTimeString()} · refreshes every ${LIVE_MS / 1000} s`; }
   else if (status.mode === 'sim') st.innerHTML = `<i class="trk-dot sim"></i><b>Simulated traffic</b>${status.errors.length ? ` · live data isn’t reachable from this page. Public flight feeds only answer servers, so run AeroCommit with <code>npm start</code> or add a relay URL above (see <code>proxy/cloudflare-worker.js</code>).<details class="trk-errs"><summary>What was tried</summary>${esc(status.errors.join(' · '))}</details>` : ''}`;
   else st.innerHTML = `<i class="trk-dot"></i>Connecting…`;
   // Plan context

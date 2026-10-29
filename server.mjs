@@ -1,12 +1,14 @@
 // Local server: serves dist/ and relays live flight data at /api/flights. No dependencies.
 //   npm start            → http://localhost:8080
 //   PORT=3000 npm start  → another port
-//   FLIGHT_UPSTREAMS=https://host/v2/point,... npm start  → other readsb-compatible feeds
+//   FLIGHT_FEEDS=adsblol npm start  → feeds to use (default adsblol,airplaneslive). airplanes.live's free
+//                                     API is non-commercial only: use FLIGHT_FEEDS=adsblol for commercial use.
+//   FLIGHT_UPSTREAMS=https://host/v2/point,... npm start  → other readsb-compatible feeds (testing)
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
-import {createRelay, DEFAULT_UPSTREAMS} from './relay.mjs';
+import {createRelay, DEFAULT_UPSTREAMS, feedsFrom} from './relay.mjs';
 
 const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon'};
 
@@ -35,6 +37,8 @@ export function createAppServer({root = fileURLToPath(new URL('./dist/', import.
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT) || 8080;
-  const upstreams = process.env.FLIGHT_UPSTREAMS ? process.env.FLIGHT_UPSTREAMS.split(',').map(s => s.trim()).filter(Boolean) : DEFAULT_UPSTREAMS;
-  createAppServer({upstreams}).listen(port, () => console.log(`AeroCommit: http://localhost:${port}  (live flights via /api/flights)`));
+  const upstreams = process.env.FLIGHT_UPSTREAMS ? process.env.FLIGHT_UPSTREAMS.split(',').map(s => s.trim()).filter(Boolean)
+    : process.env.FLIGHT_FEEDS ? feedsFrom(process.env.FLIGHT_FEEDS) : DEFAULT_UPSTREAMS;
+  if (!upstreams.length) throw new Error('FLIGHT_FEEDS names no known feed (use adsblol and/or airplaneslive)');
+  createAppServer({upstreams}).listen(port, () => console.log(`AeroCommit: http://localhost:${port}  (live flights via /api/flights: ${upstreams.map(u => u.name || u).join(', ')})`));
 }

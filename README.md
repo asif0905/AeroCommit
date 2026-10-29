@@ -14,7 +14,16 @@ Open http://localhost:8080. The bundled server (`server.mjs`) serves `dist/` and
 
 ### Live flight data on a hosted copy
 
-Public ADS-B feeds (adsb.lol, airplanes.live, OpenSky) answer servers but refuse browser requests from other websites, so a hosted copy of the app needs a small relay. `proxy/cloudflare-worker.js` is a single-file Cloudflare Worker (the free plan is enough): create a Worker, paste the file, deploy, and paste the worker URL into **Live Flights → Relay URL**. Set `ALLOWED_ORIGINS` on the Worker to restrict which sites may use it. The worker is generated from `relay.mjs` by `node tools/build-worker.mjs`.
+Public ADS-B feeds answer servers but refuse browser requests from other websites, so a hosted copy of the app needs a small relay. `proxy/cloudflare-worker.js` is a single-file Cloudflare Worker (the free plan is enough): create a Worker, paste the file, deploy, and paste the worker URL into **Live Flights → Relay URL**. Set `ALLOWED_ORIGINS` on the Worker to restrict which sites may use it. The worker is generated from `relay.mjs` by `node tools/build-worker.mjs`.
+
+### Flight data sources and terms
+
+| Feed | Terms | How AeroCommit complies |
+|---|---|---|
+| [adsb.lol](https://adsb.lol) | Data under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/); commercial use allowed with attribution | Asked first; credited and linked on every live update and in the Live Flights credits |
+| [airplanes.live](https://airplanes.live) | Free REST API for non-commercial use, 1 request per second ([API guide](https://airplanes.live/api-guide)) | Fallback only; calls spaced at least 1 s apart and cached 10 s per area; credited and linked |
+
+Choose feeds with `FLIGHT_FEEDS` (server environment variable or Worker variable; default `adsblol,airplaneslive`). For a commercial deployment set `FLIGHT_FEEDS=adsblol` unless airplanes.live has given written permission. Aircraft positions pass through the relay and are not stored.
 
 ## Tests
 

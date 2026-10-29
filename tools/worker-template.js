@@ -7,10 +7,15 @@
 //
 // Optional: set ALLOWED_ORIGINS (comma-separated) under Settings → Variables to restrict which
 // sites may use the relay. Without it any site can call it.
+//
+// Feeds: FLIGHT_FEEDS (default "adsblol,airplaneslive"). airplanes.live's free API is for
+// non-commercial use only, so a commercial deployment should set FLIGHT_FEEDS=adsblol unless
+// airplanes.live has given permission. Calls to airplanes.live are spaced 1 second apart.
 
 /*RELAY*/
 
-const relay = createRelay();
+const relays = new Map();
+const relayFor = spec => { const key = spec || DEFAULT_FEEDS; if (!relays.has(key)) relays.set(key, createRelay({upstreams: feedsFrom(key)})); return relays.get(key); };
 
 export default {
   async fetch(request, env) {
@@ -21,7 +26,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, {status: 204, headers: {...cors, 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Max-Age': '86400'}});
     if (request.method !== 'GET') return new Response('Method not allowed', {status: 405, headers: cors});
     if (allowed.length && !allowOrigin) return new Response('Origin not allowed', {status: 403});
-    const out = await relay(new URL(request.url).searchParams);
+    const out = await relayFor(env?.FLIGHT_FEEDS)(new URL(request.url).searchParams);
     return new Response(JSON.stringify(out.body), {status: out.status, headers: {...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store'}});
   }
 };
