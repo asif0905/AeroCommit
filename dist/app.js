@@ -28,15 +28,18 @@ function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('show'
 const tabLabels={overview:'Overview',routes:'Routes',economics:'Cost & GHG',supply:'Supply & Constraints',airports:'SAF Airports',supplier:'Supplier Plan',compliance:'Compliance Plan',tracker:'Live Flights',method:'Methodology'};
 let activeTab='overview';
 function changeTab(id,scroll=true){
- const marketing=['services','certification','about'].includes(id);
+ if(!id)id='home';
+ const home=id==='home',services=id==='services',marketing=['certification','about'].includes(id);
  $$('.marketing-page').forEach(p=>p.hidden=p.id!=='page-'+id);
- $('.shell').hidden=marketing;
- $$('.primary-navigation a').forEach(a=>{const selected=(a.dataset.page||a.dataset.tab)===id;if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
- if(marketing){stopTracker();$('.editorial-hero').hidden=true;$('.landing-explainer').hidden=true;history.replaceState(null,'',location.pathname+location.search+'#'+id);window.scrollTo({top:0,behavior:'instant'});return;}
+ $('.shell').hidden=home||marketing;
+ $('.editorial-hero').hidden=!home;$('.landing-explainer').hidden=!home;$('#allocation-workflow').hidden=!home;
+ $$('.primary-navigation a').forEach(a=>{const key=a.dataset.page||a.dataset.tab;const selected=key===id||(key==='services'&&!home&&!marketing&&id!=='airports');if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+ if(home||marketing){stopTracker();history.replaceState(null,'',location.pathname+location.search+(home?'':'#'+id));window.scrollTo({top:0,behavior:'instant'});return;}
+ if(services)id='overview';
  if(!tabLabels[id])id='overview';activeTab=id;
  $$('.tab-panel').forEach(p=>p.hidden=p.id!==id);
  $$('.section-tab').forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
- $('#breadcrumb').textContent=tabLabels[id];$('.editorial-hero').hidden=id!=='overview';$('.landing-explainer').hidden=id!=='overview';
+ $('#breadcrumb').textContent=tabLabels[id];
  $('.workspace-title h2').textContent={overview:'Tomorrow’s decisions. A clearer view.',routes:'Routes & destination risk',economics:'Cost & GHG decisions',supply:'Supply & delivery constraints',airports:'US & European SAF airports',supplier:'Supplier allocation & credit value',compliance:'Airline SAF & carbon compliance',tracker:'Live flights & SAF impact',method:'How the planner works'}[id];
  if(id==='supply'||id==='routes')renderInputs();
  if(id==='airports')renderDirectory();
@@ -44,8 +47,8 @@ function changeTab(id,scroll=true){
  if(id==='compliance')renderComplianceResults();
  if(id==='tracker')startTracker();else stopTracker();
  if(id==='method'){ $('#baseline').value=state.baseline;$('#lhv').value=state.lhv; }
- history.replaceState(null,'',location.pathname+location.search+(id==='overview'?'':'#'+id));
- if(scroll)$('#planning-workspace').scrollIntoView({behavior:'auto',block:'start'});
+ history.replaceState(null,'',location.pathname+location.search+(id==='overview'?'#services':'#'+id));
+ if(scroll){if(services)window.scrollTo({top:0,behavior:'instant'});else $('#planning-workspace').scrollIntoView({behavior:'auto',block:'start'});}
 }
 
 function syncControls(){for(const k of ['budget','flex','tolerance','review'])$('#'+k).value=state[k];$('#scenario').value=state.scenario;$('#plan-date').value=state.date;$('#baseline').value=state.baseline;$('#lhv').value=state.lhv}
@@ -164,7 +167,7 @@ function exportBrief(){
   const csv='\uFEFF'+rows.map(row=>row.map(c=>'"'+String(typeof c==='number'?Math.round(c*1000)/1000:c??'').replaceAll('"','""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`AeroCommit-decision-brief-${state.date}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);toast('Decision brief exported with inputs and assumptions.');
 }
 
-document.addEventListener('click',e=>{const page=e.target.closest('[data-page]');if(page){e.preventDefault();changeTab(page.dataset.page);return;}const jump=e.target.closest('[data-jump]');if(e.target.closest('.brand')){e.preventDefault();changeTab('overview');window.scrollTo({top:0,behavior:'auto'});}if(jump){const target=document.getElementById(jump.dataset.jump);changeTab(target?.closest('.tab-panel')?.id||'overview');target?.scrollIntoView({behavior:'auto',block:'start'});}const flight=e.target.closest('[data-flight]');if(flight){selectedFlight=flight.dataset.flight;renderRouteFocus();renderFallback();renderMap();changeTab('routes');$('.route-focus').scrollIntoView({behavior:'auto',block:'start'});}const nav=e.target.closest('[data-tab]');if(nav){e.preventDefault();changeTab(nav.dataset.tab);}const row=e.target.closest('[data-airport]');if(row)openDrawer(row.dataset.airport);if(e.target.closest('#drawer-edit')){closeDrawer();changeTab('supply')}});
+document.addEventListener('click',e=>{const page=e.target.closest('[data-page]');if(page){e.preventDefault();changeTab(page.dataset.page);return;}const jump=e.target.closest('[data-jump]');if(e.target.closest('.brand')){e.preventDefault();changeTab('home');window.scrollTo({top:0,behavior:'auto'});}if(jump){const target=document.getElementById(jump.dataset.jump);changeTab(target?.closest('.tab-panel')?.id||'overview');target?.scrollIntoView({behavior:'auto',block:'start'});}const flight=e.target.closest('[data-flight]');if(flight){selectedFlight=flight.dataset.flight;renderRouteFocus();renderFallback();renderMap();changeTab('routes');$('.route-focus').scrollIntoView({behavior:'auto',block:'start'});}const nav=e.target.closest('[data-tab]');if(nav){e.preventDefault();changeTab(nav.dataset.tab);}const row=e.target.closest('[data-airport]');if(row)openDrawer(row.dataset.airport);if(e.target.closest('#drawer-edit')){closeDrawer();changeTab('supply')}});
 document.addEventListener('keydown',e=>{const row=e.target.closest('[data-airport]');if(row&&['Enter',' '].includes(e.key)){e.preventDefault();openDrawer(row.dataset.airport)}const flight=e.target.closest('[data-flight]');if(flight&&['Enter',' '].includes(e.key)){e.preventDefault();selectedFlight=flight.dataset.flight;renderRouteFocus();renderFallback();renderMap();changeTab('routes');$('.route-focus').scrollIntoView({behavior:'auto'});}if(e.key==='Escape')closeDrawer();if(e.key==='Tab'&&!$('#drawer').hidden){const els=[...$('#drawer').querySelectorAll('button,input,select,[tabindex="0"]')];if(e.shiftKey&&document.activeElement===els[0]){e.preventDefault();els.at(-1).focus()}else if(!e.shiftKey&&document.activeElement===els.at(-1)){e.preventDefault();els[0].focus()}}});
 for(const key of ['budget','flex','tolerance'])$('#'+key).addEventListener('input',e=>{state[key]=Number(e.target.value);recalc()});
 $('#review').addEventListener('change',e=>{state.review=Number(e.target.value);recalc();if(!$('#supply').hidden||!$('#routes').hidden)renderInputs()});
@@ -217,9 +220,9 @@ $('.section-tabs').addEventListener('keydown',e=>{const tabs=[...$$('.section-ta
 window.addEventListener('hashchange',()=>changeTab(location.hash.slice(1),false));
 // New visits and reloads always start at the landing page.
 if('scrollRestoration' in history)history.scrollRestoration='manual';
-changeTab('overview',false);
+changeTab('home',false);
 window.scrollTo({top:0,behavior:'instant'});
-window.addEventListener('pageshow',()=>{changeTab('overview',false);window.scrollTo({top:0,behavior:'instant'});});
+window.addEventListener('pageshow',()=>{changeTab('home',false);window.scrollTo({top:0,behavior:'instant'});});
 
 $('#hero-motion-toggle').addEventListener('click',e=>{const paused=$('.editorial-hero').classList.toggle('motion-paused');e.currentTarget.setAttribute('aria-pressed',String(paused));e.currentTarget.setAttribute('aria-label',paused?'Play cinematic motion':'Pause cinematic motion');e.currentTarget.textContent=paused?'▶  Play animation':'Ⅱ  Pause animation';});
 
