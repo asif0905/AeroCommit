@@ -5,10 +5,21 @@ const status=document.getElementById('auth-status');
 const form=document.getElementById('auth-email-form');
 const google=document.getElementById('auth-google');
 const account=document.getElementById('auth-account');
-let client=null,user=null,pending=false,initializing;
+let client=null,user=null,pending=false,initializing,mode='signin';
 const callbackUrl=location.origin+'/';
 function message(text,error=false){status.textContent=text;status.classList.toggle('auth-error',error);}
-function render(){trigger.textContent=user?'My account':'Sign in ↗';document.getElementById('signin-heading').textContent=user?'Your AeroCommit account':'Sign in to AeroCommit';form.hidden=!client||!!user;google.hidden=!client||!authConfig.googleEnabled||!!user;account.hidden=!user;document.getElementById('auth-account-email').textContent=user?.email||'';}
+function render(){
+ trigger.textContent=user?'My account':'Sign in / Sign up';
+ document.getElementById('signin-heading').textContent=user?'Your AeroCommit account':mode==='signup'?'Create your AeroCommit account':'Welcome back to AeroCommit';
+ form.hidden=!client||!!user;google.hidden=!client||!authConfig.googleEnabled||!!user;account.hidden=!user;
+ document.getElementById('auth-mode-switch').hidden=!!user;
+ document.getElementById('auth-account-email').textContent=user?.email||'';
+ for(const item of ['signin','signup']){const b=document.getElementById('auth-mode-'+item);b.setAttribute('aria-pressed',String(mode===item));b.disabled=pending;}
+ document.getElementById('auth-email-submit').textContent=mode==='signup'?'Create account with email ↗':'Email me a sign-in link ↗';
+ document.getElementById('auth-email-help').textContent=mode==='signup'?'We’ll email a secure link to verify your address and complete account creation. No password required.':'Already registered? Use your email to receive a secure login link.';
+}
+function chooseMode(next){if(pending)return;mode=next;render();if(client)message(mode==='signup'?'New here? Create an account using your email.':'Sign in with the email you used to create your account.');}
+for(const item of ['signin','signup'])document.getElementById('auth-mode-'+item).onclick=()=>chooseMode(item);
 function configured(){try{return new URL(authConfig.supabaseUrl).protocol==='https:'&&!!authConfig.publishableKey;}catch{return false;}}
 async function initialize(){
  if(!configured()){message('Account sign-in is awaiting connection to the authentication service. You can continue using the planner without an account.');render();return;}
@@ -22,9 +33,9 @@ async function initialize(){
 }
 trigger.onclick=async()=>{dialog.showModal();if(!initializing)initializing=initialize();await initializing;};
 form.addEventListener('submit',async e=>{
- e.preventDefault();if(!client||pending||!form.reportValidity())return;pending=true;const button=document.getElementById('auth-email-submit');button.disabled=true;message('Sending your sign-in link…');
- try{const {error}=await client.auth.signInWithOtp({email:document.getElementById('auth-email').value.trim(),options:{emailRedirectTo:callbackUrl}});if(error)throw error;message('Check your inbox for a sign-in link. Use it in this browser to finish signing in.');}
- catch{message('The sign-in link could not be sent. Try again shortly or check the email address.',true);}finally{pending=false;button.disabled=false;}
+ e.preventDefault();if(!client||pending||!form.reportValidity())return;pending=true;const button=document.getElementById('auth-email-submit');button.disabled=true;render();message(mode==='signup'?'Sending your account verification link…':'Sending your sign-in link…');
+ try{const {error}=await client.auth.signInWithOtp({email:document.getElementById('auth-email').value.trim(),options:{emailRedirectTo:callbackUrl,shouldCreateUser:mode==='signup'}});if(error)throw error;message(mode==='signup'?'Check your inbox to verify your email and finish creating your account. If you already have an account, use the link to sign in.':'If your account exists, you’ll receive a sign-in link. New to AeroCommit? Select Create account. Open the link in this browser.');}
+ catch{message(mode==='signup'?'Account creation could not complete. Please check your email address or try again shortly.':'The sign-in link could not be sent. If you’re new, select Create account, or try again shortly.',true);}finally{pending=false;button.disabled=false;render();}
 });
 google.onclick=async()=>{if(!client||pending)return;pending=true;google.disabled=true;try{const {error}=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:callbackUrl}});if(error)throw error;}catch{message('Google sign-in is unavailable. Please use email or try again later.',true);}finally{pending=false;google.disabled=false;}};
 document.getElementById('auth-sign-out').onclick=async()=>{if(!client)return;const {error}=await client.auth.signOut();if(error)message('Sign-out could not complete. Please try again.',true);else{user=null;render();message('You have signed out.');}};
