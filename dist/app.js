@@ -30,6 +30,7 @@ let activeTab='overview';
 function changeTab(id,scroll=true){
  if(!id)id='home';
  const home=id==='home',services=id==='services',marketing=['certification','about'].includes(id);
+ $$('.home-extension').forEach(section=>section.hidden=!home);
  $$('.marketing-page').forEach(p=>p.hidden=p.id!=='page-'+id);
  $('.shell').hidden=home||marketing;
  $('.editorial-hero').hidden=!home;$('.landing-explainer').hidden=!home;$('#allocation-workflow').hidden=!home;
