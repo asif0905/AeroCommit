@@ -64,7 +64,7 @@ function recalc(){result=plan(state);renderOverview();if(selected)renderDrawer()
 
 function renderOverview(){
   $('#budget-value').textContent=short(state.budget);$('#flex-value').textContent=state.flex+'%';$('#tolerance-value').textContent=state.tolerance+'%';
-  const metrics=[['Commit now',vol(result.firm),'US gal SAF',`${result.rows.filter(r=>r.firm>0).length} airports · ${short(result.cost)} planned purchase`,'↗',''],['Keep flexible',vol(result.hold),'US gal SAF',`${short(result.holdCost)} budget ring-fenced · not ordered`,'⇄',''],['Expected savings',num(result.expected,1),'tCO₂e','Firm only · probability-weighted for tomorrow','◌','highlight'],['Budget headroom',short(result.remainingBudget),'',`${short(result.cost+result.holdCost)} allocated to firm + holds`,'◷','']];
+  const metrics=[['Commit now',vol(result.firm),'US gal SAF',`${result.rows.filter(r=>r.firm>0).length} airports · ${short(result.cost)} planned purchase`,'↗',''],['Keep flexible',vol(result.hold),'US gal SAF',`${short(result.holdCost)} budget ring-fenced · not ordered`,'⇄',''],['Expected reduction',num(result.expected,1),'tCO₂e','Firm only · probability-weighted for tomorrow','◌','highlight'],['Budget headroom',short(result.remainingBudget),'',`${short(result.cost+result.holdCost)} allocated to firm + holds`,'◷','']];
   $('#metrics').innerHTML=metrics.map(m=>`<div class="metric ${m[5]}"><div class="metric-label">${m[0]}<span class="symbol">${m[4]}</span></div><div class="number">${m[1]}<span class="unit">${m[2]}</span></div><p>${m[3]}</p></div>`).join('');
   renderRouteFocus();
   renderFallback();
@@ -225,13 +225,16 @@ initTracker();
 syncTradeoff();syncFallback();syncControls();recalc();renderInputs();
 
 $('.section-tabs').addEventListener('keydown',e=>{const tabs=[...$$('.section-tab')],i=tabs.indexOf(e.target);if(i<0)return;let n;if(e.key==='ArrowRight')n=(i+1)%tabs.length;else if(e.key==='ArrowLeft')n=(i+tabs.length-1)%tabs.length;else if(e.key==='Home')n=0;else if(e.key==='End')n=tabs.length-1;else return;e.preventDefault();e.stopPropagation();changeTab(tabs[n].dataset.tab,false);tabs[n].focus();});
-window.addEventListener('popstate',()=>changeTab(location.hash.slice(1)||'home',true,'none'));
-window.addEventListener('hashchange',()=>changeTab(location.hash.slice(1)||'home',true,'none'));
-// New visits and reloads always start at the landing page.
+
+// Open the view the address names (shared links such as /#services or /#compliance); anything else,
+// including a plain visit, starts at the landing page with a clean URL.
+const VIEWS=new Set(['home','services','certification','about',...Object.keys(tabLabels)]);
+const viewFromHash=()=>{let h='';try{h=decodeURIComponent(location.hash.slice(1));}catch{}return VIEWS.has(h)?h:'home';};
+window.addEventListener('popstate',()=>changeTab(viewFromHash(),true,'none'));
+window.addEventListener('hashchange',()=>changeTab(viewFromHash(),true,'none'));
 if('scrollRestoration' in history)history.scrollRestoration='manual';
-changeTab('home',false,'replace');
-window.scrollTo({top:0,behavior:'instant'});
-window.addEventListener('pageshow',e=>{if(e.persisted)changeTab(location.hash.slice(1)||'home',true,'none');});
+{const v=viewFromHash();changeTab(v,false,'replace');if(['home','services','certification','about'].includes(v))window.scrollTo({top:0,behavior:'instant'});else $('#planning-workspace').scrollIntoView({behavior:'instant',block:'start'});}
+window.addEventListener('pageshow',e=>{if(e.persisted)changeTab(viewFromHash(),true,'none');});
 window.addEventListener('aerocommit:signed-in',()=>{changeTab('home',false,'replace');window.scrollTo({top:0,behavior:'instant'});});
 
 $('#hero-motion-toggle').addEventListener('click',e=>{const paused=$('.editorial-hero').classList.toggle('motion-paused');e.currentTarget.setAttribute('aria-pressed',String(paused));e.currentTarget.setAttribute('aria-label',paused?'Play cinematic motion':'Pause cinematic motion');e.currentTarget.textContent=paused?'▶  Play animation':'Ⅱ  Pause animation';});

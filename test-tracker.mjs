@@ -147,3 +147,19 @@ try {
   assert.equal((await w.json()).credit.name, 'adsb.lol'); assert.ok(calls.every(u => u.startsWith('https://api.adsb.lol/')), 'worker honours FLIGHT_FEEDS');
 } finally { globalThis.fetch = realFetch; }
 console.log('PASS worker: up to date with relay.mjs, CORS headers, origin allow-list, FLIGHT_FEEDS.');
+
+// Vercel function: adsb.lol only by default, FLIGHT_FEEDS honoured, edge-cacheable answers.
+{
+  const realFetch2 = globalThis.fetch, seen = []; const savedFeeds = process.env.FLIGHT_FEEDS;
+  globalThis.fetch = async url => { seen.push(url); return {ok: true, json: async () => ({ac: [{hex: 'v1', flight: 'DAL7', t: 'B739', lat: 33.7, lon: -84.4, alt_baro: 8000}]})}; };
+  try {
+    delete process.env.FLIGHT_FEEDS;
+    const {GET} = await import('./api/flights.js');
+    let v = await GET(new Request('https://www.aerocommit.com/api/flights?lat=33.64&lon=-84.43&km=100'));
+    assert.equal(v.status, 200); assert.match(v.headers.get('cache-control'), /s-maxage=10/);
+    const vb = await v.json(); assert.equal(vb.credit.name, 'adsb.lol'); assert.equal(parseReadsb(vb)[0].callsign, 'DAL7');
+    assert.ok(seen.every(u => u.startsWith('https://api.adsb.lol/')), 'site defaults to adsb.lol only');
+    v = await GET(new Request('https://www.aerocommit.com/api/flights?lat=999')); assert.equal(v.status, 400); assert.equal(v.headers.get('cache-control'), 'no-store');
+  } finally { globalThis.fetch = realFetch2; if (savedFeeds !== undefined) process.env.FLIGHT_FEEDS = savedFeeds; }
+  console.log('PASS Vercel function: adsb.lol by default, credit, validation, 10 s edge cache.');
+}

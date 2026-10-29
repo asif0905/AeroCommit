@@ -14,7 +14,9 @@ Open http://localhost:8080. The bundled server (`server.mjs`) serves `dist/` and
 
 ### Live flight data on a hosted copy
 
-Public ADS-B feeds answer servers but refuse browser requests from other websites, so a hosted copy of the app needs a small relay. `proxy/cloudflare-worker.js` is a single-file Cloudflare Worker (the free plan is enough): create a Worker, paste the file, deploy, and paste the worker URL into **Live Flights → Relay URL**. Set `ALLOWED_ORIGINS` on the Worker to restrict which sites may use it. The worker is generated from `relay.mjs` by `node tools/build-worker.mjs`.
+On Vercel (aerocommit.com), `api/flights.js` runs the same relay as a serverless function at `/api/flights`, so Live Flights works with no extra setup. It uses adsb.lol only by default; set the Vercel environment variable `FLIGHT_FEEDS` to change that. Answers are cached at Vercel's edge for 10 seconds per area.
+
+On other hosts: public ADS-B feeds answer servers but refuse browser requests from other websites, so a hosted copy of the app needs a small relay. `proxy/cloudflare-worker.js` is a single-file Cloudflare Worker (the free plan is enough): create a Worker, paste the file, deploy, and paste the worker URL into **Live Flights → Relay URL**. Set `ALLOWED_ORIGINS` on the Worker to restrict which sites may use it. The worker is generated from `relay.mjs` by `node tools/build-worker.mjs`.
 
 ### Flight data sources and terms
 
