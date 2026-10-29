@@ -52,3 +52,89 @@ export function maximize(c, A, b, {eps = 1e-9, maxIter = 20000} = {}) {
   }
   throw new Error('LP iteration limit reached');
 }
+
+// General LP with <=, >= and = rows and right-hand sides of any sign (two-phase simplex).
+//   solveLP({objective, sense: 'max'|'min', constraints: [{a: number[] | {index: coef}, op: '<='|'>='|'=', b}]})
+// Variables are non-negative. Dantzig pricing with a switch to Bland's rule after a run of degenerate
+// pivots guarantees termination. Returns {status: 'optimal'|'infeasible'|'unbounded', x, value}.
+export function solveLP({objective, sense = 'max', constraints, eps = 1e-9, maxIter = 100000}) {
+  const n = objective.length, sign = sense === 'min' ? -1 : 1;
+  const rows = [];
+  for (const con of constraints) {
+    const a = new Float64Array(n);
+    if (Array.isArray(con.a) || ArrayBuffer.isView(con.a)) for (let j = 0; j < n; j++) a[j] = con.a[j] || 0;
+    else for (const [k, v] of Object.entries(con.a)) a[+k] += v;
+    let b = con.b, op = con.op;
+    let scale = 0; for (let j = 0; j < n; j++) scale = Math.max(scale, Math.abs(a[j]));
+    if (!(scale > 0)) {
+      const ok = op === '<=' ? b >= -1e-7 : op === '>=' ? b <= 1e-7 : Math.abs(b) <= 1e-7;
+      if (!ok) return {status: 'infeasible', x: null, value: NaN};
+      continue;
+    }
+    for (let j = 0; j < n; j++) a[j] /= scale; b /= scale;
+    if (b < 0) { for (let j = 0; j < n; j++) a[j] = -a[j]; b = -b; op = op === '<=' ? '>=' : op === '>=' ? '<=' : '='; }
+    rows.push({a, b, op});
+  }
+  const m = rows.length;
+  const nSlack = rows.filter(r => r.op !== '=').length, nArt = rows.filter(r => r.op !== '<=').length;
+  const artStart = n + nSlack, width = artStart + nArt + 1, R = width - 1;
+  const T = [], basis = [], isArt = j => j >= artStart && j < R;
+  let s = n, art = artStart;
+  for (const r of rows) {
+    const t = new Float64Array(width); t.set(r.a); t[R] = r.b;
+    if (r.op === '<=') { t[s] = 1; basis.push(s++); }
+    else { if (r.op === '>=') t[s++] = -1; t[art] = 1; basis.push(art++); }
+    T.push(t);
+  }
+  const z = new Float64Array(width);
+  let iterations = 0;
+  function pivot(row, col) {
+    const p = T[row], pv = p[col];
+    for (let j = 0; j < width; j++) p[j] /= pv;
+    for (let i = 0; i < T.length; i++) { if (i === row) continue; const f = T[i][col]; if (f !== 0) { const t = T[i]; for (let j = 0; j < width; j++) t[j] -= f * p[j]; } }
+    const fz = z[col]; if (fz !== 0) for (let j = 0; j < width; j++) z[j] -= fz * p[j];
+    basis[row] = col;
+  }
+  function run(allowArt) {
+    let degenerate = 0;
+    for (;;) {
+      if (++iterations > maxIter) throw new Error('LP iteration limit reached');
+      const bland = degenerate > 50;
+      let enter = -1, best = -eps;
+      for (let j = 0; j < R; j++) {
+        if (!allowArt && isArt(j)) continue;
+        if (z[j] < best) { enter = j; if (bland) break; best = z[j]; }
+      }
+      if (enter < 0) return 'optimal';
+      let leave = -1, ratio = Infinity;
+      for (let i = 0; i < T.length; i++) {
+        const a = T[i][enter];
+        if (a > eps) { const q = T[i][R] / a; if (q < ratio - 1e-12 || (Math.abs(q - ratio) <= 1e-12 && basis[i] < basis[leave])) { ratio = q; leave = i; } }
+      }
+      if (leave < 0) return 'unbounded';
+      degenerate = ratio < 1e-12 ? degenerate + 1 : 0;
+      pivot(leave, enter);
+    }
+  }
+  // Phase 1: maximize −(sum of artificials).
+  if (nArt) {
+    for (let i = 0; i < T.length; i++) if (isArt(basis[i])) for (let j = 0; j < width; j++) if (!isArt(j)) z[j] -= T[i][j];
+    run(true);
+    if (z[R] < -1e-7 * Math.max(1, m)) return {status: 'infeasible', x: null, value: NaN};
+    // Drive remaining (zero-valued) artificials out of the basis; drop redundant rows.
+    for (let i = T.length - 1; i >= 0; i--) {
+      if (!isArt(basis[i])) continue;
+      let col = -1; for (let j = 0; j < artStart; j++) if (Math.abs(T[i][j]) > 1e-9) { col = j; break; }
+      if (col >= 0) pivot(i, col); else { T.splice(i, 1); basis.splice(i, 1); }
+    }
+  }
+  // Phase 2: original objective.
+  z.fill(0);
+  for (let j = 0; j < n; j++) z[j] = -sign * objective[j];
+  for (let i = 0; i < T.length; i++) { const f = z[basis[i]]; if (f !== 0) for (let j = 0; j < width; j++) z[j] -= f * T[i][j]; }
+  const status = run(false);
+  if (status === 'unbounded') return {status, x: null, value: sign * Infinity};
+  const x = new Array(n).fill(0);
+  basis.forEach((j, i) => { if (j < n) x[j] = Math.max(0, T[i][R]); });
+  return {status: 'optimal', x, value: objective.reduce((t, v, j) => t + v * x[j], 0), iterations};
+}

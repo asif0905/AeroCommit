@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Weather-aware SAF supply planning prototype",
   "scripts": {
-    "test": "node test-engine.mjs && node test-fallback.mjs && node test-tradeoff.mjs && node test-units.mjs && node test-geo.mjs && node test-airports.mjs && node test-supplier.mjs"
+    "start": "node server.mjs",
+    "test": "node test-engine.mjs && node test-fallback.mjs && node test-tradeoff.mjs && node test-units.mjs && node test-geo.mjs && node test-airports.mjs && node test-supplier.mjs && node test-compliance.mjs && node test-tracker.mjs"
   }
 }
