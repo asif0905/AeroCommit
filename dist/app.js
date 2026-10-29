@@ -31,7 +31,7 @@ function changeTab(id,scroll=true){
  if(!tabLabels[id])id='overview';activeTab=id;
  $$('.tab-panel').forEach(p=>p.hidden=p.id!==id);
  $$('.section-tab').forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
- $('#breadcrumb').textContent=tabLabels[id];$('.editorial-hero').hidden=id!=='overview';
+ $('#breadcrumb').textContent=tabLabels[id];$('.editorial-hero').hidden=id!=='overview';$('.landing-explainer').hidden=id!=='overview';
  $('.workspace-title h2').textContent={overview:'Tomorrow’s decisions. A clearer view.',routes:'Routes & destination risk',economics:'Cost & GHG decisions',supply:'Supply & delivery constraints',airports:'US & European SAF airports',supplier:'Supplier allocation & credit value',compliance:'Airline SAF & carbon compliance',tracker:'Live flights & SAF impact',method:'How the planner works'}[id];
  if(id==='supply'||id==='routes')renderInputs();
  if(id==='airports')renderDirectory();
@@ -71,16 +71,16 @@ function renderMap(){
   const ll=o=>[o.lon,o.lat];
   const configured=a=>a.hazard!=='Not configured';
   const weather=result.rows.filter(a=>configured(a)&&a.risk>=30).map(a=>{const {x,y}=xy(a);return `<circle cx="${x}" cy="${y}" r="${(20+a.risk*0.9).toFixed(0)}" fill="url(#storm)"/>`;}).join('');
-  const routes=result.lanes.map(l=>{const v=state.suppliers.find(s=>s.id===l.supplier),a=state.airports.find(a=>a.id===l.airport);const p=xy(v),q=xy(a);const c=l.firm>0?'#5d6b97':l.hold>0?'#bd9c66':'#d6dae4';const dx=q.x-p.x,dy=q.y-p.y,cx=(p.x+q.x)/2-dy*.12,cy=(p.y+q.y)/2+dx*.12;const km=distanceKm(ll(v),ll(a));return `<path d="M${p.x.toFixed(1)},${p.y.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${q.x.toFixed(1)},${q.y.toFixed(1)}" fill="none" stroke="${c}" stroke-width="${l.firm+l.hold>0?1.5+Math.min(2,(l.firm+l.hold)/40):1}" stroke-dasharray="${l.hold>0&&l.firm===0?'6 5':l.firm+l.hold===0?'3 6':'none'}" opacity="${l.firm+l.hold>0?.85:.6}"><title>${safe(v.name)} (${safe(v.place||v.location)}) → ${a.id} · ${num(km,0)} km straight-line · ${l.lead} h transit</title></path>`;}).join('');
-  const flightArcs=result.flightRows.map(f=>{const a=state.airports.find(a=>a.id===f.origin),b=state.airports.find(a=>a.id===f.destination);const c=f.firm>0?'#495989':f.hold>0?'#bd9c66':'#b7bbc7';const km=distanceKm(ll(a),ll(b));return `<path data-flight="${f.id}" class="flight-arc" d="${polyline(greatCircle(ll(a),ll(b),40))}" fill="none" stroke="${c}" stroke-width="${f.id===selectedFlight?4:1.8}" stroke-dasharray="${f.firm>0?'none':'7 5'}" marker-end="url(#flight-arrow)" opacity="${f.id===selectedFlight?1:.45}"><title>${safe(f.airline)} · ${f.origin} → ${f.destination} · ${num(km,0)} km great circle · ${f.status}</title></path>`;}).join('');
+  const routes=result.lanes.map(l=>{const v=state.suppliers.find(s=>s.id===l.supplier),a=state.airports.find(a=>a.id===l.airport);const p=xy(v),q=xy(a);const c=l.firm>0?'#0876aa':l.hold>0?'#bd9c66':'#d6dae4';const dx=q.x-p.x,dy=q.y-p.y,cx=(p.x+q.x)/2-dy*.12,cy=(p.y+q.y)/2+dx*.12;const km=distanceKm(ll(v),ll(a));return `<path d="M${p.x.toFixed(1)},${p.y.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${q.x.toFixed(1)},${q.y.toFixed(1)}" fill="none" stroke="${c}" stroke-width="${l.firm+l.hold>0?1.5+Math.min(2,(l.firm+l.hold)/40):1}" stroke-dasharray="${l.hold>0&&l.firm===0?'6 5':l.firm+l.hold===0?'3 6':'none'}" opacity="${l.firm+l.hold>0?.85:.6}"><title>${safe(v.name)} (${safe(v.place||v.location)}) → ${a.id} · ${num(km,0)} km straight-line · ${l.lead} h transit</title></path>`;}).join('');
+  const flightArcs=result.flightRows.map(f=>{const a=state.airports.find(a=>a.id===f.origin),b=state.airports.find(a=>a.id===f.destination);const c=f.firm>0?'#0876aa':f.hold>0?'#bd9c66':'#a3adb7';const km=distanceKm(ll(a),ll(b));return `<path data-flight="${f.id}" class="flight-arc" d="${polyline(greatCircle(ll(a),ll(b),40))}" fill="none" stroke="${c}" stroke-width="${f.id===selectedFlight?4:1.8}" stroke-dasharray="${f.firm>0?'none':'7 5'}" marker-end="url(#flight-arrow)" opacity="${f.id===selectedFlight?1:.45}"><title>${safe(f.airline)} · ${f.origin} → ${f.destination} · ${num(km,0)} km great circle · ${f.status}</title></path>`;}).join('');
   // Labels: airports first, then hubs, then ocean names; nothing may sit on a marker or another label.
   const pts=result.rows.map(a=>({a,...xy(a)})),hubPts=state.suppliers.map(v=>({v,...xy(v)}));
   const markerBoxes=[...pts.map(p=>({x:p.x-11,y:p.y-11,w:22,h:22})),...(mapLayer==='flights'?[]:hubPts.map(p=>({x:p.x-8,y:p.y-8,w:16,h:16})))];
   const sub=a=>configured(a)?a.risk+'% disruption':'Risk not configured';
   const airportBoxes=placeLabels(pts.map(p=>({x:p.x,y:p.y,w:Math.max(textWidth(p.a.id,15,true),textWidth(sub(p.a),13)),h:32})),markerBoxes,W);
   const hubBoxes=mapLayer==='flights'?[]:placeLabels(hubPts.map(p=>({x:p.x,y:p.y,w:textWidth(p.v.id.toUpperCase()+' HUB',12)+8,h:14,gap:10})),[...markerBoxes,...airportBoxes],W);
-  const nodes=pts.map(({a,x,y},i)=>{const b=airportBoxes[i];const c=a.firm>0?'#4c5c8d':a.hold>0?'#bb965c':'#ad9b8e';return `<g class="airport-node" tabindex="0" role="button" aria-label="${a.id}, ${a.status}, inspect details" data-airport="${a.id}"><title>${a.id} · ${safe(a.name)} · ${Math.abs(a.lat).toFixed(2)}°${a.lat>=0?'N':'S'} ${Math.abs(a.lon).toFixed(2)}°${a.lon>=0?'E':'W'}</title><circle cx="${x}" cy="${y}" r="20" fill="${c}" opacity=".08"/><circle class="node-ring" cx="${x}" cy="${y}" r="8" fill="white" stroke="${c}" stroke-width="2"/><circle cx="${x}" cy="${y}" r="3" fill="${c}"/><text x="${b.x.toFixed(1)}" y="${(b.y+13).toFixed(1)}" font-size="15" fill="#384057" font-weight="700">${a.id}</text><text x="${b.x.toFixed(1)}" y="${(b.y+29).toFixed(1)}" font-size="13" fill="#7f869d">${sub(a)}</text></g>`;}).join('');
-  const hubs=hubPts.map(({v,x,y},i)=>{const b=hubBoxes[i];return `<g><title>${safe(v.name)} · ${safe(v.place||v.location)} (illustrative hub)</title><rect x="${x-5}" y="${y-5}" width="10" height="10" rx="1" transform="rotate(45 ${x} ${y})" fill="#dadeea" stroke="#8b94b1"/>${b?`<text x="${(b.x+4).toFixed(1)}" y="${(b.y+11).toFixed(1)}" fill="#8c94aa" font-size="12" letter-spacing="1">${v.id.toUpperCase()} HUB</text>`:''}</g>`;}).join('');
+  const nodes=pts.map(({a,x,y},i)=>{const b=airportBoxes[i];const c=a.firm>0?'#0876aa':a.hold>0?'#bb965c':'#ad9b8e';return `<g class="airport-node" tabindex="0" role="button" aria-label="${a.id}, ${a.status}, inspect details" data-airport="${a.id}"><title>${a.id} · ${safe(a.name)} · ${Math.abs(a.lat).toFixed(2)}°${a.lat>=0?'N':'S'} ${Math.abs(a.lon).toFixed(2)}°${a.lon>=0?'E':'W'}</title><circle cx="${x}" cy="${y}" r="20" fill="${c}" opacity=".08"/><circle class="node-ring" cx="${x}" cy="${y}" r="8" fill="white" stroke="${c}" stroke-width="2"/><circle cx="${x}" cy="${y}" r="3" fill="${c}"/><text x="${b.x.toFixed(1)}" y="${(b.y+13).toFixed(1)}" font-size="15" fill="#384057" font-weight="700">${a.id}</text><text x="${b.x.toFixed(1)}" y="${(b.y+29).toFixed(1)}" font-size="13" fill="#7f869d">${sub(a)}</text></g>`;}).join('');
+  const hubs=hubPts.map(({v,x,y},i)=>{const b=hubBoxes[i];return `<g><title>${safe(v.name)} · ${safe(v.place||v.location)} (illustrative hub)</title><rect x="${x-5}" y="${y-5}" width="10" height="10" rx="1" transform="rotate(45 ${x} ${y})" fill="#dadeea" stroke="#76838f"/>${b?`<text x="${(b.x+4).toFixed(1)}" y="${(b.y+11).toFixed(1)}" fill="#8c94aa" font-size="12" letter-spacing="1">${v.id.toUpperCase()} HUB</text>`:''}</g>`;}).join('');
   const all=[...state.airports,...state.suppliers],west=all.filter(p=>p.lon<-30),east=all.filter(p=>p.lon>=-30);
   const oceanSpots=network.extended?[{name:'PACIFIC',lon:-131,lat:31},{name:'ATLANTIC',lon:west.length&&east.length?(Math.max(...west.map(p=>p.lon))+Math.min(...east.map(p=>p.lon)))/2:-40,lat:38}]:[{name:'PACIFIC',lon:-127,lat:33},{name:'ATLANTIC',lon:-69,lat:32}];
   const busy=[...markerBoxes,...airportBoxes,...hubBoxes];
@@ -218,3 +218,18 @@ $('#airport-country').innerHTML+=[...new Set(safAirports.map(a=>a.country))].sor
 for(const id of ['airport-search','airport-region','airport-country','airport-evidence'])$('#'+id).addEventListener(id==='airport-search'?'input':'change',renderDirectory);
 document.addEventListener('click',e=>{const b=e.target.closest('[data-directory-add]');if(b)addDirectoryAirport(b.dataset.directoryAdd);});
 $('#directory-export').onclick=()=>{const url=URL.createObjectURL(new Blob([toCsv(directoryCsvRows(directoryResults(),checkedOn))],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='aerocommit-saf-airports-'+checkedOn+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+
+// Progressive enhancement: reveal the landing panels together in reading order.
+const explainerGrid=document.querySelector('.explainer-grid');
+const reducedPanelMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+if(explainerGrid && 'IntersectionObserver' in window && !reducedPanelMotion.matches){
+  explainerGrid.classList.add('reveal-ready');
+  const panelObserver=new IntersectionObserver(entries=>{
+    if(entries.some(entry=>entry.isIntersecting)){
+      explainerGrid.classList.add('panels-visible');
+      panelObserver.disconnect();
+    }
+  },{threshold:0.12});
+  panelObserver.observe(explainerGrid);
+  reducedPanelMotion.addEventListener('change',e=>{if(e.matches){explainerGrid.classList.remove('reveal-ready');panelObserver.disconnect();}});
+}
