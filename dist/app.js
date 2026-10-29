@@ -28,6 +28,11 @@ function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('show'
 const tabLabels={overview:'Overview',routes:'Routes',economics:'Cost & GHG',supply:'Supply & Constraints',airports:'SAF Airports',supplier:'Supplier Plan',compliance:'Compliance Plan',tracker:'Live Flights',method:'Methodology'};
 let activeTab='overview';
 function changeTab(id,scroll=true){
+ const marketing=['services','certification','about'].includes(id);
+ $$('.marketing-page').forEach(p=>p.hidden=p.id!=='page-'+id);
+ $('.shell').hidden=marketing;
+ $$('.primary-navigation a').forEach(a=>{const selected=(a.dataset.page||a.dataset.tab)===id;if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+ if(marketing){stopTracker();$('.editorial-hero').hidden=true;$('.landing-explainer').hidden=true;history.replaceState(null,'',location.pathname+location.search+'#'+id);window.scrollTo({top:0,behavior:'instant'});return;}
  if(!tabLabels[id])id='overview';activeTab=id;
  $$('.tab-panel').forEach(p=>p.hidden=p.id!==id);
  $$('.section-tab').forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
@@ -159,7 +164,7 @@ function exportBrief(){
   const csv='\uFEFF'+rows.map(row=>row.map(c=>'"'+String(typeof c==='number'?Math.round(c*1000)/1000:c??'').replaceAll('"','""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`AeroCommit-decision-brief-${state.date}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);toast('Decision brief exported with inputs and assumptions.');
 }
 
-document.addEventListener('click',e=>{const jump=e.target.closest('[data-jump]');if(e.target.closest('.brand')){e.preventDefault();changeTab('overview');window.scrollTo({top:0,behavior:'auto'});}if(jump){const target=document.getElementById(jump.dataset.jump);changeTab(target?.closest('.tab-panel')?.id||'overview');target?.scrollIntoView({behavior:'auto',block:'start'});}const flight=e.target.closest('[data-flight]');if(flight){selectedFlight=flight.dataset.flight;renderRouteFocus();renderFallback();renderMap();changeTab('routes');$('.route-focus').scrollIntoView({behavior:'auto',block:'start'});}const nav=e.target.closest('[data-tab]');if(nav)changeTab(nav.dataset.tab);const row=e.target.closest('[data-airport]');if(row)openDrawer(row.dataset.airport);if(e.target.closest('#drawer-edit')){closeDrawer();changeTab('supply')}});
+document.addEventListener('click',e=>{const page=e.target.closest('[data-page]');if(page){e.preventDefault();changeTab(page.dataset.page);return;}const jump=e.target.closest('[data-jump]');if(e.target.closest('.brand')){e.preventDefault();changeTab('overview');window.scrollTo({top:0,behavior:'auto'});}if(jump){const target=document.getElementById(jump.dataset.jump);changeTab(target?.closest('.tab-panel')?.id||'overview');target?.scrollIntoView({behavior:'auto',block:'start'});}const flight=e.target.closest('[data-flight]');if(flight){selectedFlight=flight.dataset.flight;renderRouteFocus();renderFallback();renderMap();changeTab('routes');$('.route-focus').scrollIntoView({behavior:'auto',block:'start'});}const nav=e.target.closest('[data-tab]');if(nav){e.preventDefault();changeTab(nav.dataset.tab);}const row=e.target.closest('[data-airport]');if(row)openDrawer(row.dataset.airport);if(e.target.closest('#drawer-edit')){closeDrawer();changeTab('supply')}});
 document.addEventListener('keydown',e=>{const row=e.target.closest('[data-airport]');if(row&&['Enter',' '].includes(e.key)){e.preventDefault();openDrawer(row.dataset.airport)}const flight=e.target.closest('[data-flight]');if(flight&&['Enter',' '].includes(e.key)){e.preventDefault();selectedFlight=flight.dataset.flight;renderRouteFocus();renderFallback();renderMap();changeTab('routes');$('.route-focus').scrollIntoView({behavior:'auto'});}if(e.key==='Escape')closeDrawer();if(e.key==='Tab'&&!$('#drawer').hidden){const els=[...$('#drawer').querySelectorAll('button,input,select,[tabindex="0"]')];if(e.shiftKey&&document.activeElement===els[0]){e.preventDefault();els.at(-1).focus()}else if(!e.shiftKey&&document.activeElement===els.at(-1)){e.preventDefault();els[0].focus()}}});
 for(const key of ['budget','flex','tolerance'])$('#'+key).addEventListener('input',e=>{state[key]=Number(e.target.value);recalc()});
 $('#review').addEventListener('change',e=>{state.review=Number(e.target.value);recalc();if(!$('#supply').hidden||!$('#routes').hidden)renderInputs()});
@@ -237,3 +242,9 @@ if(explainerGrid && 'IntersectionObserver' in window && !reducedPanelMotion.matc
   panelObserver.observe(explainerGrid);
   reducedPanelMotion.addEventListener('change',e=>{if(e.matches){explainerGrid.classList.remove('reveal-ready');panelObserver.disconnect();}});
 }
+
+const signInDialog=document.getElementById('sign-in-dialog');
+$('#sign-in-open').onclick=()=>signInDialog.showModal();
+$('#sign-in-close').onclick=()=>signInDialog.close();
+$('#sign-in-continue').onclick=()=>{signInDialog.close();changeTab('overview');};
+signInDialog.addEventListener('click',e=>{if(e.target===signInDialog){const r=signInDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)signInDialog.close();}});
