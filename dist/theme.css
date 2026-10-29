@@ -127,3 +127,4 @@ main#planning-workspace>.tab-panel,main#planning-workspace>.section-tabs,main#pl
 @keyframes explainer-line-in{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @media(hover:hover) and (prefers-reduced-motion:no-preference){.explainer-grid.panels-visible article:hover{translate:0 -5px;transition:translate .25s ease}.explainer-grid article{transition:translate .25s ease}}
 @media(prefers-reduced-motion:reduce){.explainer-grid article,.explainer-grid article::before{animation:none!important;transition:none!important;opacity:1!important;transform:none!important;translate:none!important}}
+.trk-credits{font-size:14px;color:#5a6274}.trk-credits a{color:#0876aa}

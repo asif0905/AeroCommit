@@ -67,36 +67,22 @@ export function parseReadsb(json) {
   }).filter(Boolean);
 }
 
-// OpenSky /api/states/all: {states: [[icao24, callsign, country, tPos, tLast, lon, lat, baroAlt(m), onGround, vel(m/s), track, vrate(m/s), ...]]}.
-export function parseOpenSky(json) {
-  const list = Array.isArray(json?.states) ? json.states : [];
-  return list.map(s => {
-    if (!Array.isArray(s)) return null;
-    const lat = num(s[6]), lon = num(s[5]);
-    if (lat == null || lon == null || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
-    const alt = num(s[7]), vel = num(s[9]), vr = num(s[11]);
-    return {id: clean(s[0], 6), callsign: clean(s[1]), type: '', reg: '', lat, lon,
-      altFt: s[8] === true ? 0 : alt == null ? null : alt * 3.28084, ground: s[8] === true,
-      speedKt: vel == null ? null : vel * 1.94384, track: num(s[10]), vrateFpm: vr == null ? null : vr * 196.85};
-  }).filter(Boolean);
-}
-
-// Feeds tried in order by "Auto". The public feeds do not allow requests from other websites (CORS),
-// so a page served anywhere else reaches them through a relay: the bundled server's /api/flights
-// (npm start) or a deployed copy of proxy/cloudflare-worker.js. The relay answers {source, ac} in readsb format.
+// Live data always goes through a relay: the bundled server's /api/flights (npm start) or a deployed
+// copy of proxy/cloudflare-worker.js. The public feeds refuse requests from other websites (CORS), and
+// the relay is where each feed's terms are applied: one cached call per area every 10 s, airplanes.live
+// spaced 1 s apart, and the feed's name and terms returned as `credit` so the page can show them.
 const relayUrl = (base, lat, lon, km) => `${base}${base.includes('?') ? '&' : '?'}lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}&km=${Math.round(km)}`;
+// Feed credit from a relay response, kept only if it names a known feed (the response is untrusted).
+export const FEED_CREDITS = {
+  'adsb.lol': {name: 'adsb.lol', url: 'https://adsb.lol', terms: 'data © adsb.lol contributors, ODbL 1.0', licence: 'https://opendatacommons.org/licenses/odbl/1-0/'},
+  'airplanes.live': {name: 'airplanes.live', url: 'https://airplanes.live', terms: 'free API, non-commercial use', licence: 'https://airplanes.live/api-guide'}
+};
+export const creditOf = json => FEED_CREDITS[String(json?.credit?.name ?? json?.source ?? '')] || null;
 export const validRelay = u => { try { const x = new URL(u); return x.protocol === 'https:' && !x.username && !x.password; } catch { return false; } };
 export const SOURCES = {
-  local: {label: 'AeroCommit server', home: 'https://adsb.lol', url: (lat, lon, km) => relayUrl('./api/flights', lat, lon, km), parse: parseReadsb, relay: true},
-  relay: {label: 'Your relay', home: 'https://adsb.lol', url: (lat, lon, km, base) => relayUrl(base, lat, lon, km), parse: parseReadsb, relay: true, needsBase: true},
-  adsblol: {label: 'adsb.lol', home: 'https://adsb.lol', url: (lat, lon, km) => `https://api.adsb.lol/v2/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${Math.min(250, Math.round(km / 1.852))}`, parse: parseReadsb},
-  airplaneslive: {label: 'airplanes.live', home: 'https://airplanes.live', url: (lat, lon, km) => `https://api.airplanes.live/v2/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${Math.min(250, Math.round(km / 1.852))}`, parse: parseReadsb},
-  opensky: {label: 'OpenSky Network', home: 'https://opensky-network.org', url: (lat, lon, km) => { const b = bbox(lat, lon, km); return `https://opensky-network.org/api/states/all?lamin=${b.lamin.toFixed(3)}&lomin=${b.lomin.toFixed(3)}&lamax=${b.lamax.toFixed(3)}&lomax=${b.lomax.toFixed(3)}`; }, parse: parseOpenSky}
+  local: {label: 'AeroCommit server', url: (lat, lon, km) => relayUrl('./api/flights', lat, lon, km), parse: parseReadsb, relay: true},
+  relay: {label: 'Your relay', url: (lat, lon, km, base) => relayUrl(base, lat, lon, km), parse: parseReadsb, relay: true, needsBase: true},
 };
-export function bbox(lat, lon, km) {
-  const dLat = km / 110.574, dLon = km / (111.32 * Math.max(0.05, Math.cos(lat * Math.PI / 180)));
-  return {lamin: lat - dLat, lamax: lat + dLat, lomin: lon - dLon, lomax: lon + dLon};
-}
 
 // --- Flight phase ----------------------------------------------------------------------------------
 // Near the airport and low: climbing means it departed here (and fuelled here), descending means arriving.
