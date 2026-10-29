@@ -27,7 +27,14 @@ const bounds={supply:[0,2000],price:[1,20000],ci:[0,300],risk:[0,100],delivery:[
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),3200)}
 const tabLabels={overview:'Overview',routes:'Routes',economics:'Cost & GHG',supply:'Supply & Constraints',airports:'SAF Airports',supplier:'Supplier Plan',compliance:'Compliance Plan',tracker:'Live Flights',method:'Methodology'};
 let activeTab='overview';
-function changeTab(id,scroll=true){
+function recordNavigation(id,mode){
+ const view=id==='overview'?'services':id;
+ const url=location.pathname+location.search+(view==='home'?'':'#'+view);
+ if(mode==='none')return;
+ if(mode==='replace')history.replaceState({aerocommitView:view},'',url);
+ else if(location.pathname+location.search+location.hash!==url)history.pushState({aerocommitView:view},'',url);
+}
+function changeTab(id,scroll=true,historyMode='push'){
  if(!id)id='home';
  const home=id==='home',services=id==='services',marketing=['certification','about'].includes(id);
  $$('.home-extension').forEach(section=>section.hidden=!home);
@@ -35,7 +42,7 @@ function changeTab(id,scroll=true){
  $('.shell').hidden=home||marketing;
  $('.editorial-hero').hidden=!home;$('.landing-explainer').hidden=!home;$('#allocation-workflow').hidden=!home;
  $$('.primary-navigation a').forEach(a=>{const key=a.dataset.page||a.dataset.tab;const selected=key===id||(key==='services'&&!home&&!marketing&&id!=='airports');if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
- if(home||marketing){stopTracker();history.replaceState(null,'',location.pathname+location.search+(home?'':'#'+id));window.scrollTo({top:0,behavior:'instant'});return;}
+ if(home||marketing){stopTracker();recordNavigation(id,historyMode);window.scrollTo({top:0,behavior:'instant'});return;}
  if(services)id='overview';
  if(!tabLabels[id])id='overview';activeTab=id;
  $$('.tab-panel').forEach(p=>p.hidden=p.id!==id);
@@ -48,7 +55,7 @@ function changeTab(id,scroll=true){
  if(id==='compliance')renderComplianceResults();
  if(id==='tracker')startTracker();else stopTracker();
  if(id==='method'){ $('#baseline').value=state.baseline;$('#lhv').value=state.lhv; }
- history.replaceState(null,'',location.pathname+location.search+(id==='overview'?'#services':'#'+id));
+ recordNavigation(id,historyMode);
  if(scroll){if(services)window.scrollTo({top:0,behavior:'instant'});else $('#planning-workspace').scrollIntoView({behavior:'auto',block:'start'});}
 }
 
@@ -218,12 +225,14 @@ initTracker();
 syncTradeoff();syncFallback();syncControls();recalc();renderInputs();
 
 $('.section-tabs').addEventListener('keydown',e=>{const tabs=[...$$('.section-tab')],i=tabs.indexOf(e.target);if(i<0)return;let n;if(e.key==='ArrowRight')n=(i+1)%tabs.length;else if(e.key==='ArrowLeft')n=(i+tabs.length-1)%tabs.length;else if(e.key==='Home')n=0;else if(e.key==='End')n=tabs.length-1;else return;e.preventDefault();e.stopPropagation();changeTab(tabs[n].dataset.tab,false);tabs[n].focus();});
-window.addEventListener('hashchange',()=>changeTab(location.hash.slice(1),false));
+window.addEventListener('popstate',()=>changeTab(location.hash.slice(1)||'home',true,'none'));
+window.addEventListener('hashchange',()=>changeTab(location.hash.slice(1)||'home',true,'none'));
 // New visits and reloads always start at the landing page.
 if('scrollRestoration' in history)history.scrollRestoration='manual';
-changeTab('home',false);
+changeTab('home',false,'replace');
 window.scrollTo({top:0,behavior:'instant'});
-window.addEventListener('pageshow',()=>{changeTab('home',false);window.scrollTo({top:0,behavior:'instant'});});
+window.addEventListener('pageshow',e=>{if(e.persisted)changeTab(location.hash.slice(1)||'home',true,'none');});
+window.addEventListener('aerocommit:signed-in',()=>{changeTab('home',false,'replace');window.scrollTo({top:0,behavior:'instant'});});
 
 $('#hero-motion-toggle').addEventListener('click',e=>{const paused=$('.editorial-hero').classList.toggle('motion-paused');e.currentTarget.setAttribute('aria-pressed',String(paused));e.currentTarget.setAttribute('aria-label',paused?'Play cinematic motion':'Pause cinematic motion');e.currentTarget.textContent=paused?'▶  Play animation':'Ⅱ  Pause animation';});
 
@@ -248,7 +257,7 @@ if(explainerGrid && 'IntersectionObserver' in window && !reducedPanelMotion.matc
 }
 
 const signInDialog=document.getElementById('sign-in-dialog');
-$('#sign-in-open').onclick=()=>signInDialog.showModal();
+
 $('#sign-in-close').onclick=()=>signInDialog.close();
 $('#sign-in-continue').onclick=()=>{signInDialog.close();changeTab('overview');};
 signInDialog.addEventListener('click',e=>{if(e.target===signInDialog){const r=signInDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)signInDialog.close();}});
