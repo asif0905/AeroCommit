@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {parseReadsb, parseOpenSky, phaseOf, planShares, assess, summarize, simulate, burnRate, airlineOf, reductionFactor, SOURCES, bbox, FCF, DEFAULT_BURN_KG_H} from './dist/tracker.mjs';
+import {parseReadsb, phaseOf, planShares, assess, summarize, simulate, burnRate, airlineOf, reductionFactor, SOURCES, creditOf, FCF, DEFAULT_BURN_KG_H} from './dist/tracker.mjs';
 import {demoCompliance, planCompliance} from './dist/compliance.mjs';
 import {distanceKm} from './dist/geo.mjs';
 const near = (a, b, tol, msg = '') => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} != ${b}`);
@@ -15,12 +15,14 @@ const rb = parseReadsb({ac: [
 assert.equal(rb.length, 3, 'drops rows without numeric position');
 assert.equal(rb[0].callsign, 'DAL123'); assert.equal(rb[0].type, 'A321'); assert.equal(rb[1].ground, true); assert.equal(rb[1].altFt, 0);
 assert.ok(/^[A-Z0-9-]*$/.test(rb[2].callsign), 'callsign sanitised');
-const os = parseOpenSky({states: [['a1b2c3', 'AAL45   ', 'United States', 0, 0, -73.9, 40.7, 3048, false, 128.6, 270, 5.08], ['x', 'N1', 'US', 0, 0, null, 40, 0, true]]});
-assert.equal(os.length, 1); near(os[0].altFt, 10000, 1, 'm→ft'); near(os[0].speedKt, 250, 0.5, 'm/s→kt'); near(os[0].vrateFpm, 1000, 1, 'm/s→ft/min');
-assert.deepEqual(parseReadsb(null), []); assert.deepEqual(parseOpenSky({states: 'nope'}), []);
-assert.match(SOURCES.adsblol.url(40.6413, -73.7781, 150), /\/v2\/point\/40\.6413\/-73\.7781\/81$/);
-const b = bbox(40, -74, 111.32 * Math.cos(40 * Math.PI / 180)); near(b.lomax - b.lomin, 2, 1e-9, 'bbox lon span');
-console.log('PASS feeds: readsb and OpenSky parsing, unit conversion, sanitising, query URLs.');
+assert.deepEqual(parseReadsb(null), []); assert.deepEqual(parseReadsb({ac: 'nope'}), []);
+assert.deepEqual(Object.keys(SOURCES), ['local', 'relay'], 'live data only through a relay; no direct or OpenSky calls');
+assert.equal(SOURCES.local.url(40.6413, -73.7781, 150), './api/flights?lat=40.6413&lon=-73.7781&km=150');
+assert.match(SOURCES.relay.url(40, -73, 100, 'https://r.example/?k=1'), /^https:\/\/r\.example\/\?k=1&lat=40\.0000&lon=-73\.0000&km=100$/);
+assert.equal(creditOf({source: 'adsb.lol'}).terms, 'data © adsb.lol contributors, ODbL 1.0');
+assert.match(creditOf({credit: {name: 'airplanes.live'}}).terms, /non-commercial/);
+assert.equal(creditOf({source: '<script>'}), null, 'unknown feed names are not displayed');
+console.log('PASS feeds: readsb parsing, sanitising, relay-only sources, feed credits.');
 
 // Phase, airline and burn lookups.
 assert.equal(phaseOf(rb[0], JFK), 'departing');
@@ -75,7 +77,7 @@ const s2 = summarize([dep, ga]); assert.equal(s2.airborne, 1); assert.equal(s2.n
 console.log('PASS airline filter: private and business aircraft excluded from totals.');
 
 // Relay: validation, field filtering, fallback between upstreams, caching, errors.
-import {createRelay, parseQuery} from './relay.mjs';
+import {createRelay, parseQuery, feedsFrom, FEEDS} from './relay.mjs';
 import {createAppServer} from './server.mjs';
 import {buildWorker} from './tools/build-worker.mjs';
 import {readFileSync} from 'node:fs';
@@ -97,6 +99,23 @@ const dead = createRelay({upstreams: ['https://down.example/v2/point'], fetchImp
 out = await dead(new URLSearchParams('lat=40&lon=-73&km=50')); assert.equal(out.status, 502); assert.match(out.body.details[0], /503/);
 assert.equal(parseReadsb(out.status === 502 ? {} : out.body).length, 0);
 console.log('PASS relay: validation, field filter, upstream fallback, 10 s cache, error reporting.');
+
+// Feed terms: selection by name, airplanes.live non-commercial and limited to 1 request per second, credit returned.
+assert.deepEqual(feedsFrom('adsblol').map(f => f.id), ['adsblol']);
+assert.deepEqual(feedsFrom('AirplanesLive, adsblol, bogus, adsblol').map(f => f.id), ['airplaneslive', 'adsblol']);
+assert.deepEqual(feedsFrom().map(f => f.id), ['adsblol', 'airplaneslive'], 'adsb.lol (ODbL) first');
+assert.equal(FEEDS.airplaneslive.commercial, false); assert.equal(FEEDS.airplaneslive.minIntervalMs, 1000); assert.equal(FEEDS.adsblol.commercial, true);
+let t = 0, slept = [], apCalls = [];
+const apFetch = async url => { apCalls.push({url, at: t}); return {ok: true, json: async () => ({ac: []})}; };
+const apRelay = createRelay({upstreams: feedsFrom('airplaneslive'), fetchImpl: apFetch, now: () => t, sleep: async ms => { slept.push(ms); t += ms; }});
+const r1 = await apRelay(new URLSearchParams('lat=40&lon=-73&km=50'));
+assert.equal(r1.body.source, 'airplanes.live'); assert.equal(r1.body.credit.terms, 'non-commercial use, 1 request/s'); assert.equal(creditOf(r1.body).name, 'airplanes.live');
+await apRelay(new URLSearchParams('lat=41&lon=-73&km=50')); await apRelay(new URLSearchParams('lat=42&lon=-73&km=50'));
+assert.deepEqual(apCalls.map(c => c.at), [0, 1000, 2000], 'calls spaced 1 s apart'); assert.deepEqual(slept, [1000, 1000]);
+t = 10000; await apRelay(new URLSearchParams('lat=43&lon=-73&km=50')); assert.equal(slept.length, 2, 'no wait once a second has passed');
+const lolOnly = []; const lolRelay = createRelay({upstreams: feedsFrom('adsblol'), fetchImpl: async url => { lolOnly.push(url); return {ok: false, status: 503}; }});
+await lolRelay(new URLSearchParams('lat=40&lon=-73&km=50')); assert.ok(lolOnly.every(u => u.startsWith('https://api.adsb.lol/')), 'commercial setting never calls airplanes.live');
+console.log('PASS feed terms: FLIGHT_FEEDS selection, airplanes.live 1 request/s, credit in every response.');
 
 // Local server: static files, /api/flights through the relay, path traversal refused.
 const srv = createAppServer({upstreams: ['https://up.example/v2/point'], fetchImpl: fakeFetch});
@@ -123,5 +142,8 @@ try {
   w = await worker.fetch(new Request('https://relay.example/?lat=40&lon=-73', {headers: {Origin: 'https://a.example'}}), {ALLOWED_ORIGINS: 'https://a.example'});
   assert.equal(w.headers.get('access-control-allow-origin'), 'https://a.example');
   assert.equal((await worker.fetch(new Request('https://relay.example/', {method: 'OPTIONS'}), {})).status, 204);
+  calls = [];
+  w = await worker.fetch(new Request('https://relay.example/?lat=30&lon=-90&km=100'), {FLIGHT_FEEDS: 'adsblol'});
+  assert.equal((await w.json()).credit.name, 'adsb.lol'); assert.ok(calls.every(u => u.startsWith('https://api.adsb.lol/')), 'worker honours FLIGHT_FEEDS');
 } finally { globalThis.fetch = realFetch; }
-console.log('PASS worker: up to date with relay.mjs, CORS headers, optional origin allow-list.');
+console.log('PASS worker: up to date with relay.mjs, CORS headers, origin allow-list, FLIGHT_FEEDS.');

@@ -130,3 +130,4 @@ main#planning-workspace>.tab-panel,main#planning-workspace>.section-tabs,main#pl
 
 /* Approved AeroCommit flight-and-SAF logo lockup. */
 .brand-logo-v2{display:block;width:330px;max-width:100%;height:auto;object-fit:contain}.footer-brand .brand-logo-v2{width:290px}@media(max-width:760px){.brand-logo-v2{width:250px}.footer-brand .brand-logo-v2{width:250px}}
+.trk-credits{font-size:14px;color:#5a6274}.trk-credits a{color:#0876aa}
