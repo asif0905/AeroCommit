@@ -13,7 +13,8 @@ function render(){
  $('auth-confirm-group').hidden=!(signup||recovery);$('auth-confirm').required=signup||recovery;$('auth-password-hint').hidden=!(signup||recovery);$('auth-forgot').hidden=mode!=='signin';
  $('auth-email-submit').textContent=pending?'Please wait…':copy[mode][2];$('auth-email-submit').disabled=pending;
  $('auth-switch-line').hidden=signedIn||recovery;$('auth-switch-copy').textContent=signup?'Already have an account?':reset?'Remember your password?':'Don’t have an account?';$('auth-switch').textContent=mode==='signin'?'Sign up':'Sign in';$('auth-switch').disabled=pending;
- $('auth-google').hidden=!client||!authConfig.googleEnabled||signedIn||reset||recovery;
+ $('auth-social').hidden=!client||signedIn||reset||recovery;
+ for(const id of ['auth-google','auth-microsoft'])$(id).disabled=pending;
 }
 function chooseMode(next){if(pending)return;mode=next;message();$('auth-password').value='';$('auth-confirm').value='';$('auth-confirm').setCustomValidity('');$('auth-password').type='password';$('auth-show-password').textContent='Show';$('auth-show-password').setAttribute('aria-label','Show password');$('auth-show-password').setAttribute('aria-pressed','false');render();}
 $('auth-switch').onclick=()=>chooseMode(mode==='signin'?'signup':'signin');$('auth-forgot').onclick=()=>chooseMode('reset');
@@ -48,7 +49,20 @@ form.addEventListener('submit',async e=>{
  }catch(error){const code=error?.code;message(code==='invalid_credentials'?'Incorrect email or password. Try again or reset your password.':code==='email_not_confirmed'?'Please confirm your email before signing in.':code==='weak_password'?'Choose a stronger password with at least 8 characters.':code==='recovery_expired'?'This reset session has expired. Request a new reset link.':code==='over_email_send_rate_limit'||code==='over_request_rate_limit'?'Too many attempts. Please wait and try again.':'Unable to complete this request. Check your details and try again.',true);}
  finally{pending=false;render();}
 });
-$('auth-google').onclick=async()=>{if(!client||pending)return;const {error}=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:callbackUrl}});if(error)message('Google sign-in is unavailable. Please use email and password.',true);};
+async function socialSignIn(provider,label){
+ if(!client||pending)return;pending=true;message();render();
+ try{
+  const response=await fetch(authConfig.supabaseUrl+'/auth/v1/settings',{headers:{apikey:authConfig.publishableKey}});
+  if(!response.ok)throw new Error('settings');
+  const settings=await response.json();
+  if(!settings.external?.[provider]){message(label+' sign-in is not available yet. Please use email and password while we finish setup.');return;}
+  const options={redirectTo:callbackUrl};if(provider==='azure')options.scopes='email';
+  const {error}=await client.auth.signInWithOAuth({provider,options});if(error)throw error;
+ }catch{message(label+' sign-in could not start. Please try again or use email and password.',true);}
+ finally{pending=false;render();}
+}
+$('auth-google').onclick=()=>socialSignIn('google','Google');
+$('auth-microsoft').onclick=()=>socialSignIn('azure','Microsoft');
 $('auth-sign-out').onclick=async()=>{if(!client)return;const {error}=await client.auth.signOut();if(error)message('Unable to sign out. Please try again.',true);else{user=null;chooseMode('signin');message('You have signed out.');}};
 dialog.addEventListener('close',()=>{if(mode!=='newpassword'){$('auth-password').value='';$('auth-confirm').value='';}});
 render();if(configured())initializing=initialize();else message('Sign-in is temporarily unavailable. You can still use the planner.');
