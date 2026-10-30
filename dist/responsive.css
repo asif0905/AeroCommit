@@ -1,0 +1,97 @@
+/* Responsive overrides are loaded last, after the established brand theme. */
+.mobile-menu-toggle,.mobile-section-picker{display:none}
+.site-header .brand-logo-v2{height:auto;max-width:100%;display:block}
+@media(max-width:1100px){
+ .site-header .primary-navigation{min-width:0;flex-wrap:wrap;overflow:visible}
+}
+@media(max-width:760px){
+ :root{--page-gutter:20px}
+ .site-header{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;padding:16px 20px;min-height:0;align-items:center}
+ .site-header .brand{min-width:0;flex-shrink:1}
+ .site-header .brand-logo-v2{width:210px}
+ .sign-in-trigger{margin:0;padding:10px 14px;font-size:14px}
+ .mobile-menu-toggle{display:flex;align-items:center;justify-content:center;gap:6px;grid-column:3;grid-row:1;min-height:44px;padding:9px 12px;border:1px solid #c8d8e2;border-radius:9px;background:#fff;color:#294252;font-size:14px;font-weight:700}
+ .site-header .sign-in-trigger{grid-column:2;grid-row:1}
+ .site-header .primary-navigation{display:none;grid-column:1/-1;order:initial;width:100%;padding-top:10px;border-top:1px solid #dce6ed;gap:4px}
+ .site-header.menu-open .primary-navigation{display:grid;grid-template-columns:1fr}
+ .primary-navigation a{display:block;white-space:normal;min-height:44px;padding:12px 14px;border-radius:7px;border-bottom:0;font-size:16px}
+ .primary-navigation a:hover,.primary-navigation a[aria-current]{background:#eaf6fc}
+ .utility-bar{padding:4px 20px;min-height:36px}
+ .utility-bar>div{justify-content:flex-end}
+ .utility-bar button{min-height:32px}
+ .editorial-hero{min-height:0;padding:40px 20px 90px;align-items:center}
+ .editorial-hero .hero-inner{width:100%;max-width:600px}
+ .editorial-hero h1{font-size:clamp(30px,7.8vw,44px);line-height:1.16;letter-spacing:-1px}
+ .editorial-hero h1 br{display:none}
+ .editorial-hero p{font-size:17px;line-height:1.7}
+ .editorial-hero:before{background:linear-gradient(110deg,#0c1b30eb,#0c1b30b8 65%,#0c1b3080)}
+ .hero-eyebrow{font-size:12px;letter-spacing:1.4px}
+ .editorial-hero .hero-actions{align-items:stretch;flex-direction:column;gap:12px;margin:24px 0 18px}
+ .hero-actions button{white-space:normal;min-height:48px;width:fit-content;max-width:100%}
+ .hero-caption{max-width:none;font-size:13px}
+ .hero-motion-toggle{bottom:18px;right:20px;min-height:44px;font-size:12px}
+ .mobile-section-picker{display:grid;position:sticky;top:0;z-index:8;gap:5px;background:#f4f8fb;border:1px solid #c8dce8;border-radius:10px;padding:10px 12px;margin:18px 0 24px;box-shadow:0 4px 15px #292d3508}
+ .mobile-section-picker>span{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#526d7c}
+ .mobile-section-picker select{width:100%;min-width:0;min-height:44px;padding:8px 12px;border:1px solid #b9cfdd;border-radius:6px;font-size:16px;background:#fff;color:#253e50}
+ .section-tabs{display:none}
+ main{padding:26px 20px 0}
+ .tab-panel,.route-focus,.fallback-card{scroll-margin-top:115px}
+ .workspace-title h2{font-size:26px;line-height:1.25}
+ .planning-bar{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:18px}
+ .planning-bar>*,.planning-bar input,.planning-bar select{width:100%;max-width:100%;min-width:0}
+ .planning-bar .scenario-select{border-left:0;border-top:1px solid #dce2e7;padding:14px 0 0}
+ .planning-bar .btn{margin:0;min-height:44px}
+ .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .metric{min-width:0;padding:18px 12px;border-bottom:1px solid #dce2e7}
+ .metric .number{font-size:clamp(22px,5.8vw,30px);overflow-wrap:anywhere}
+ .metric .metric-label{font-size:14px;gap:6px}
+ .metric p{font-size:13px}
+ .metric:nth-child(odd){border-right:1px solid #dce2e7}
+ .metric:nth-child(even){border-right:0}
+ .metric:nth-last-child(-n+2){border-bottom:0}
+ .overview-grid,.lower-grid,.method-grid,.sup-grid,.tradeoff-body,.fallback-detail-grid{grid-template-columns:minmax(0,1fr)}
+ .fallback-inputs,.tradeoff-inputs,.directory-filters{grid-template-columns:minmax(0,1fr)}
+ .fallback-inputs .checkbox-label{grid-column:auto}
+ .fallback-inputs label,.directory-filters label,.route-selectors label{min-width:0}
+ .route-selectors{flex-direction:column;width:100%}
+ .route-selectors label{flex:none;width:100%}
+ input:not([type=checkbox]):not([type=range]),select{font-size:16px!important}
+ .fallback-inputs input:not([type=checkbox]),.fallback-inputs select,.route-selectors select{max-width:100%;min-height:44px}
+ .card-header{padding:20px 18px;gap:14px}
+ .card-header h2,.route-focus>.card-header h2{font-size:22px}
+ .card-header .btn,.section-next{white-space:normal}
+ .table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .table-scroll:focus-visible{outline-offset:-3px}
+ .table-foot{padding:14px 18px}
+ .map svg{height:auto;min-height:220px}
+ .map-legend{gap:12px;padding:14px 16px}
+ .method-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+ .method-fields label{flex-wrap:wrap}
+ .window span.time{width:100%}
+ .workflow-step-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .workflow-step-tabs button{min-width:0;white-space:normal;min-height:54px;font-size:13px;padding:10px}
+ .workflow-heading{flex-wrap:wrap;gap:18px}
+ .workflow-heading h2{font-size:36px}
+ .workflow-explanation{min-height:0}
+ .workflow-cta .btn{white-space:normal}
+ .audience-panel .btn,.landing-close .btn{white-space:normal}
+ .audience-panel{min-width:0}
+ .product-preview,.preview-decision>div{min-width:0}
+ .preview-decision{flex-wrap:wrap}
+ .public-footer .brand-logo-v2{max-width:100%;height:auto}
+ .toast{width:max-content;max-width:calc(100% - 32px);bottom:max(18px,env(safe-area-inset-bottom));padding:14px 18px}
+ .drawer{padding:22px 18px;padding-bottom:max(22px,env(safe-area-inset-bottom))}
+ .icon-btn{min-width:44px;min-height:44px}
+ .standard-auth{max-height:calc(100dvh - 24px);padding:30px 22px 22px}
+}
+@media(max-width:400px){
+ .site-header{padding:14px 16px;gap:8px;grid-template-columns:minmax(0,1fr) auto auto}
+ .site-header .brand-logo-v2{width:165px}
+ .mobile-menu-toggle{font-size:12px;padding:8px}
+ .sign-in-trigger{font-size:12px;padding:10px}
+ .sign-in-trigger span{display:none}
+ .preview-inputs{grid-template-columns:minmax(0,1fr)}
+ .audience-switch{width:100%}
+ .audience-switch button{flex:1;padding:12px 14px}
+ .workflow-step-tabs{grid-template-columns:minmax(0,1fr)}
+}

@@ -36,6 +36,7 @@ function recordNavigation(id,mode){
 }
 function changeTab(id,scroll=true,historyMode='push'){
  if(!id)id='home';
+ closeMobileMenu();
  const home=id==='home',services=id==='services',marketing=['certification','about'].includes(id);
  $$('.home-extension').forEach(section=>section.hidden=!home);
  $$('.marketing-page').forEach(p=>p.hidden=p.id!=='page-'+id);
@@ -47,6 +48,7 @@ function changeTab(id,scroll=true,historyMode='push'){
  if(!tabLabels[id])id='overview';activeTab=id;
  $$('.tab-panel').forEach(p=>p.hidden=p.id!==id);
  $$('.section-tab').forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
+ $('#mobile-section').value=id;
  $('#breadcrumb').textContent=tabLabels[id];
  $('.workspace-title h2').textContent={overview:'Tomorrow’s decisions. A clearer view.',routes:'Routes & destination risk',economics:'Cost & GHG decisions',supply:'Supply & delivery constraints',airports:'US & European SAF airports',supplier:'Supplier allocation & credit value',compliance:'Airline SAF & carbon compliance',tracker:'Live flights & SAF impact',method:'How the planner works'}[id];
  if(id==='supply'||id==='routes')renderInputs();
@@ -264,3 +266,25 @@ const signInDialog=document.getElementById('sign-in-dialog');
 $('#sign-in-close').onclick=()=>signInDialog.close();
 $('#sign-in-continue').onclick=()=>{signInDialog.close();changeTab('overview');};
 signInDialog.addEventListener('click',e=>{if(e.target===signInDialog){const r=signInDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)signInDialog.close();}});
+
+// Keep compact navigation in sync with links, browser history and desktop tabs.
+const mobileMenu = $('#mobile-menu-toggle');
+function closeMobileMenu(){
+ document.querySelector('.site-header').classList.remove('menu-open');
+ document.querySelector('#mobile-menu-toggle').setAttribute('aria-expanded','false');
+}
+mobileMenu.addEventListener('click',()=>{
+ const open=mobileMenu.getAttribute('aria-expanded')!=='true';
+ document.querySelector('.site-header').classList.toggle('menu-open',open);
+ mobileMenu.setAttribute('aria-expanded',String(open));
+});
+$('#mobile-section').addEventListener('change',e=>changeTab(e.target.value));
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'&&mobileMenu.getAttribute('aria-expanded')==='true'){
+  closeMobileMenu();mobileMenu.focus();
+ }
+});
+document.addEventListener('click',e=>{
+ if(!e.target.closest('.site-header'))closeMobileMenu();
+});
+matchMedia('(max-width: 760px)').addEventListener('change',closeMobileMenu);
