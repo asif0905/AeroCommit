@@ -183,6 +183,16 @@ main#planning-workspace>.tab-panel,main#planning-workspace>.section-tabs,main#pl
 /* Auth UI uses a managed provider; credentials are never handled by the planner. */
 #auth-email-form[hidden],#auth-google[hidden],#auth-account[hidden]{display:none!important}#auth-email-form{display:grid;gap:10px;margin:22px 0 0}#auth-email-form label{font-size:15px;font-weight:700;color:#3b5262}#auth-email{box-sizing:border-box;width:100%;border:1px solid #bccfdb;border-radius:9px;background:#fff;color:#253643;padding:14px;font:inherit;font-size:16px}#auth-email-form .btn{width:100%;margin-top:7px}#auth-email-form .btn:disabled,#auth-google:disabled{opacity:.6;cursor:wait}.sign-in-dialog .auth-help{font-size:13px;line-height:1.6;margin:4px 0 12px;color:#667d8b}.sign-in-dialog .auth-google{width:100%;border:1px solid #cfdee7;background:#fff;color:#253643}.sign-in-dialog .auth-error{color:#a33737}#auth-account-email{overflow-wrap:anywhere;font-weight:700}
 
+/* Services page fixes */
+.toast:not(.show){opacity:0;visibility:hidden;pointer-events:none}.toast:empty{display:none}
+.toast{transition:transform .2s,opacity .2s,visibility .2s}
+footer p,.public-footer>p{color:#4f6575}
+.marketing-grid .marketing-wide{grid-column:1/-1}
+/* Tool tabs wrap onto a second row instead of hiding tabs off the edge on desktop widths. */
+@media(min-width:761px){.section-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow-x:visible}.section-tabs .section-tab{min-width:0;white-space:normal;padding:10px 8px;font-size:15px;line-height:1.3;display:flex;align-items:center;justify-content:center;text-align:center}}
+@media(min-width:960px){.section-tabs{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(min-width:1300px){.section-tabs{grid-template-columns:repeat(9,minmax(0,1fr))}}
+
 .auth-mode-switch{display:flex;gap:5px;padding:5px;background:#edf4f8;border-radius:12px;margin:22px 0}.auth-mode-switch button{flex:1;padding:12px 10px;font-size:15px;font-weight:700;color:#526f82;background:transparent;border-radius:8px}.auth-mode-switch button[aria-pressed=true]{background:#253643;color:#fff;box-shadow:0 3px 10px #213b4c15}.auth-mode-switch[hidden]{display:none!important}.auth-mode-switch button:disabled{cursor:wait;opacity:.65}
 
 /* Conventional, compact email/password authentication. */
